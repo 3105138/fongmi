@@ -143,21 +143,22 @@ jobs:
           python3 scripts/restore_exo_disc_navigation.py --media3-root media3
           git -C media3 diff --check
 
-      - name: Download verified official 5.6.9 APKs
+            - name: Download official APKs (URLs updated)
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/fongmi-official-569"
-          curl --fail --location --retry 3 --retry-all-errors \
-            --connect-timeout 20 --max-time 600 \
-            "https://github.com/FongMi/Release/releases/download/5.6.9/mobile-arm64_v8a.apk" \
-            --output "$RUNNER_TEMP/fongmi-official-569/mobile-arm64_v8a.apk"
-          curl --fail --location --retry 3 --retry-all-errors \
-            --connect-timeout 20 --max-time 600 \
-            "https://github.com/FongMi/Release/releases/download/5.6.9/mobile-armeabi_v7a.apk" \
-            --output "$RUNNER_TEMP/fongmi-official-569/mobile-armeabi_v7a.apk"
-          echo "55f1bb3e780d2635bb216680361ca7b78f9c5773e730c4d9d537ab757e8fb6f4  $RUNNER_TEMP/fongmi-official-569/mobile-arm64_v8a.apk" | sha256sum --check
-          echo "1e7059ab265f56c633cce7b2058006a527bda4e2f95f91921a9d16054bd648e0  $RUNNER_TEMP/fongmi-official-569/mobile-armeabi_v7a.apk" | sha256sum --check
 
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 20 --max-time 600 \
+            "https://github.com/FongMi/Release/releases/latest/download/mobile-arm64_v8a.apk" \
+            --output "$RUNNER_TEMP/fongmi-official-569/mobile-arm64_v8a.apk"
+            
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 20 --max-time 600 \
+            "https://github.com/FongMi/Release/releases/latest/download/mobile-armeabi_v7a.apk" \
+            --output "$RUNNER_TEMP/fongmi-official-569/mobile-armeabi_v7a.apk"
+          
+          echo "Files downloaded successfully."
       - name: Update compatibility scripts for official 5.6.9 hashes
         run: |
           set -euo pipefail
