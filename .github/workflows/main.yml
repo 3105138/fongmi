@@ -108,42 +108,27 @@ jobs:
           restore-keys: |
             chaquopy-${{ runner.os }}-py310-
 
-      - name: Configure release signing
-        env:
-          B64KEY: ${{ secrets.SIGNING_KEY }}
-          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+      - name: Generate Temporary Test Signing
         run: |
           set -euo pipefail
-
-          for v in B64KEY KEY_ALIAS STORE_PASSWORD KEY_PASSWORD; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::缺少 GitHub Secret: $v"
-              exit 1
-            fi
-          done
-
+        
           STORE_FILE="$GITHUB_WORKSPACE/.key/release.jks"
           mkdir -p "$(dirname "$STORE_FILE")"
-
-          printf '%s' "$B64KEY" | tr -d '\r\n ' | base64 --decode > "$STORE_FILE"
-          test -s "$STORE_FILE"
-
-          keytool -list \
-            -keystore "$STORE_FILE" \
-            -storepass "$STORE_PASSWORD" \
-            -alias "$KEY_ALIAS" >/dev/null
-
+          
+          keytool -genkey -v -keystore "$STORE_FILE" \
+            -alias testalias -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass 123456 -keypass 123456 \
+            -dname "CN=Test, OU=Test, O=Test, L=Test, ST=Test, C=US"
+            
           cat > local.properties <<EOF
           storeFile=$STORE_FILE
-          keyAlias=$KEY_ALIAS
-          storePassword=$STORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
+          keyAlias=testalias
+          storePassword=123456
+          keyPassword=123456
           EOF
-
-          echo "Release signing configured."
-
+          
+          echo "Temporary test signing configured successfully."
+     
       - name: Grant execute permission
         run: chmod +x gradlew media3/gradlew media3-ass/gradlew
 
