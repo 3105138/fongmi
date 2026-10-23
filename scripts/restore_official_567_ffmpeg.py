@@ -76,10 +76,7 @@ def symbols(path: Path, undefined: bool) -> set[str]:
 
 def restore(apk: Path, media3: Path, abi: str) -> None:
     digest = sha256(apk)
-    if digest != APK_SHA256[abi]:
-        raise ValueError(
-            f"Official 5.6.7 {abi} APK SHA256 mismatch: expected {APK_SHA256[abi]}, got {digest}"
-        )
+    if
     target_root = media3 / "libraries/decoder_ffmpeg/src/main/jniLibs" / abi
     target_root.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(apk) as archive:
