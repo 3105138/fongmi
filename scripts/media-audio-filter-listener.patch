@@ -1,0 +1,71 @@
+diff --git a/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayer.java b/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayer.java
+index 8666506..89e8fdc 100644
+--- a/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayer.java
++++ b/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayer.java
+@@ -367,6 +367,13 @@ public final class MpvPlayer extends SimpleBasePlayer implements DiscMenuControl
+     return effectController.setAudioFilter(checkNotNull(audioFilter));
+   }
+ 
++  public void setAudioFilterListener(@Nullable MpvEffectController.AudioFilterListener listener) {
++    verifyApplicationThread();
++    if (!playerInfo.isReleased()) {
++      effectController.setAudioFilterListener(listener);
++    }
++  }
++
+   public void setAudioOutputListener(@Nullable AudioOutputListener listener) {
+     verifyApplicationThread();
+     if (!playerInfo.isReleased()) {
+@@ -528,6 +535,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements DiscMenuControl
+             return COMPLETED;
+           }
+           audioOutputListener = null;
++          effectController.setAudioFilterListener(null);
+           artworkLoader.release();
+           handler.removeCallbacksAndMessages(null);
+           resetSeekState();
+diff --git a/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/core/MpvEffectController.java b/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/core/MpvEffectController.java
+index b66bf75..1b51379 100644
+--- a/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/core/MpvEffectController.java
++++ b/libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/core/MpvEffectController.java
+@@ -29,6 +29,16 @@ import com.google.common.collect.ImmutableList;
+ 
+ public final class MpvEffectController {
+ 
++  public interface AudioFilterListener {
++    void onAudioFilterApplied(boolean success);
++  }
++
++  @Nullable private AudioFilterListener audioFilterListener;
++
++  public void setAudioFilterListener(@Nullable AudioFilterListener listener) {
++    audioFilterListener = listener;
++  }
++
+   private static final String OPT_AUDIO_FILTER_ADD = "af-add";
+ 
+   private final MpvPlaybackProperties playbackProperties;
+@@ -117,12 +127,19 @@ public final class MpvEffectController {
+   }
+ 
+   private boolean applyAudioFilter(MpvAudioFilter audioFilter) {
++    boolean success;
+     if (audioFilter.getFilter().isEmpty()) {
+-      return removeAppliedAudioFilter();
++      success = removeAppliedAudioFilter();
++    } else {
++      success = hasSameGraph(audioFilter)
++          ? updateAudioFilter(audioFilter)
++          : replaceAudioFilter(audioFilter);
++    }
++    @Nullable AudioFilterListener listener = audioFilterListener;
++    if (listener != null) {
++      listener.onAudioFilterApplied(success);
+     }
+-    return hasSameGraph(audioFilter)
+-        ? updateAudioFilter(audioFilter)
+-        : replaceAudioFilter(audioFilter);
++    return success;
+   }
+ 
+   private boolean hasSameGraph(MpvAudioFilter audioFilter) {
