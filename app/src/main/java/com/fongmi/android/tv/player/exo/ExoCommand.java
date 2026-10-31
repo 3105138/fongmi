@@ -3,9 +3,10 @@ package com.fongmi.android.tv.player.exo;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaChapter;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoTransform;
 import androidx.media3.common.text.SubtitleOffsets;
-import androidx.media3.common.util.TrackSelectionUtil;
 import androidx.media3.ui.PlayerView;
 
 import com.fongmi.android.tv.player.PlayerManager;
@@ -98,19 +99,107 @@ public final class ExoCommand {
     }
 
     private static Result executeAudioTrack(Player player, Parsed parsed) {
-        boolean applied;
         if (parsed.mode.equals("cycle")) {
-            applied = TrackSelectionUtil.cycleTrack(player, C.TRACK_TYPE_AUDIO, !parsed.reverse, true);
-        } else if (parsed.mode.equals("cycle-values")) {
-            applied = TrackSelectionUtil.cycleTrack(player, C.TRACK_TYPE_AUDIO, parsed.trackIds, !parsed.reverse, false);
-        } else {
-            applied = switch (parsed.trackIds.get(0)) {
-                case "no" -> TrackSelectionUtil.setTrackTypeDisabled(player, C.TRACK_TYPE_AUDIO, true);
-                case "auto" -> TrackSelectionUtil.resetTrackSelection(player, C.TRACK_TYPE_AUDIO);
-                default -> TrackSelectionUtil.selectTrack(player, C.TRACK_TYPE_AUDIO, parsed.trackIds.get(0));
-            };
+            List<AudioTrack> tracks = getAudioTracks(player);
+            if (tracks.isEmpty()) return Result.UNAVAILABLE;
+            int selected = -1;
+            for (int i = 0; i < tracks.size(); i++) {
+                if (tracks.get(i).selected) {
+                    selected = i;
+                    break;
+                }
+            }
+            int step = parsed.reverse ? -1 : 1;
+            int next = selected < 0
+                    ? (parsed.reverse ? tracks.size() - 1 : 0)
+                    : Math.floorMod(selected + step, tracks.size());
+            return selectAudioTrack(player, tracks.get(next)) ? Result.APPLIED : Result.UNAVAILABLE;
         }
-        return applied ? Result.APPLIED : Result.UNAVAILABLE;
+
+        if (parsed.mode.equals("cycle-values")) {
+            List<AudioTrack> available = getAudioTracks(player);
+            if (available.isEmpty()) return Result.UNAVAILABLE;
+            List<AudioTrack> ordered = new java.util.ArrayList<>();
+            for (String id : parsed.trackIds) {
+                AudioTrack match = findAudioTrack(available, id);
+                if (match != null) ordered.add(match);
+            }
+            if (ordered.isEmpty()) return Result.UNAVAILABLE;
+            int selected = -1;
+            for (int i = 0; i < ordered.size(); i++) {
+                if (ordered.get(i).selected) {
+                    selected = i;
+                    break;
+                }
+            }
+            int step = parsed.reverse ? -1 : 1;
+            int next = selected < 0
+                    ? (parsed.reverse ? ordered.size() - 1 : 0)
+                    : Math.floorMod(selected + step, ordered.size());
+            return selectAudioTrack(player, ordered.get(next)) ? Result.APPLIED : Result.UNAVAILABLE;
+        }
+
+        String trackId = parsed.trackIds.get(0);
+        if (trackId.equals("no")) {
+            player.setTrackSelectionParameters(player.getTrackSelectionParameters()
+                    .buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                    .build());
+            return Result.APPLIED;
+        }
+        if (trackId.equals("auto")) {
+            player.setTrackSelectionParameters(player.getTrackSelectionParameters()
+                    .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+                    .build());
+            return Result.APPLIED;
+        }
+        AudioTrack track = findAudioTrack(getAudioTracks(player), trackId);
+        return track != null && selectAudioTrack(player, track) ? Result.APPLIED : Result.UNAVAILABLE;
+    }
+
+    private static List<AudioTrack> getAudioTracks(Player player) {
+        List<AudioTrack> result = new java.util.ArrayList<>();
+        for (Tracks.Group group : player.getCurrentTracks().getGroups()) {
+            if (group.getType() != C.TRACK_TYPE_AUDIO) continue;
+            for (int i = 0; i < group.length; i++) {
+                if (!group.isTrackSupported(i)) continue;
+                String id = group.getTrackFormat(i).id;
+                result.add(new AudioTrack(group, i, id, group.isTrackSelected(i)));
+            }
+        }
+        return result;
+    }
+
+    private static AudioTrack findAudioTrack(List<AudioTrack> tracks, String id) {
+        for (AudioTrack track : tracks) {
+            if (id.equals(track.id)) return track;
+        }
+        return null;
+    }
+
+    private static boolean selectAudioTrack(Player player, AudioTrack track) {
+        player.setTrackSelectionParameters(player.getTrackSelectionParameters()
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+                .setOverrideForType(new TrackSelectionOverride(track.group.getMediaTrackGroup(), track.index))
+                .build());
+        return true;
+    }
+
+    private static final class AudioTrack {
+        final Tracks.Group group;
+        final int index;
+        final String id;
+        final boolean selected;
+
+        AudioTrack(Tracks.Group group, int index, String id, boolean selected) {
+            this.group = group;
+            this.index = index;
+            this.id = id;
+            this.selected = selected;
+        }
     }
 
     private static Result executeChapter(PlayerManager manager, Player player, Parsed parsed) {
