@@ -1,0 +1,430 @@
+
+name: Build FongMi 5.8.4 Official MPV
+
+on:
+  push:
+    branches:
+      - fongmi
+    paths:
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: Select APK version
+        required: true
+        default: all
+        type: choice
+        options:
+          - leanback
+          - mobile
+          - all
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      MPV_RUN_ID: "40209432515"
+
+    steps:
+      - name: Checkout FongMi 5.8.4
+        uses: actions/checkout@v4
+        with:
+          ref: fongmi
+
+      - name: Checkout compatible Media3
+        uses: actions/checkout@v4
+        with:
+          repository: dlgt6/media
+          ref: 01116cae74e3b149b1c295f9a841311ac4aa6e8f
+          path: official-media3
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          mkdir -p "$RUNNER_TEMP/android-tools"
+
+          curl -fL --retry 3 \
+            https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip \
+            -o "$RUNNER_TEMP/tools.zip"
+
+          unzip -q "$RUNNER_TEMP/tools.zip" \
+            -d "$RUNNER_TEMP/android-tools"
+
+          mv "$RUNNER_TEMP/android-tools/cmdline-tools" \
+            "$ANDROID_HOME/cmdline-tools/latest"
+
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
+          set +o pipefail
+          yes | "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --licenses >/dev/null
+          set -o pipefail
+
+          "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --channel=3 \
+            --install \
+            "platform-tools" \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "cmake;3.22.1" \
+            "ndk;27.2.12479018"
+
+          if [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s "$ANDROID_HOME/platforms/android-37.0" \
+              "$ANDROID_HOME/platforms/android-37"
+          fi
+
+      - name: Download official MPV native libraries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_ARTIFACT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Missing UPSTREAM_ARTIFACT_TOKEN"
+            exit 1
+          fi
+
+          mkdir -p native-input/mpv
+          mkdir -p native-input/renderer
+
+          gh run download "$MPV_RUN_ID" \
+            --repo FongMi/mpv-android \
+            --name mpv-android-fongmi \
+            --dir native-input/mpv
+
+          gh run download "$MPV_RUN_ID" \
+            --repo FongMi/mpv-android \
+            --name mpv-android-renderer-sdk \
+            --dir native-input/renderer
+
+          find native-input/mpv -type f -name "*.so"
+
+      - name: Verify official MPV native files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for ABI in arm64-v8a armeabi-v7a; do
+            for SO in \
+              libmpv.so \
+              libplayer.so \
+              libffmpeg.so \
+              libc++_shared.so
+            do
+              FILE="native-input/mpv/$ABI/$SO"
+
+              if [ ! -s "$FILE" ]; then
+                echo "::error::Missing $FILE"
+                exit 1
+              fi
+            done
+            echo "Verified $ABI"
+          done
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Configure Android projects
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" \
+            > official-media3/local.properties
+
+          chmod +x official-media3/gradlew
+          chmod +x gradlew
+
+      - name: Prepare compatible Media3 interfaces and native links
+        run: |
+          git -C official-media3 apply "$GITHUB_WORKSPACE/scripts/media-audio-filter-listener.patch"
+          python3 scripts/prepare_unified_media.py prepare
+
+      - name: Build official Media3 libraries
+        working-directory: official-media3
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./gradlew \
+            :lib-common:assembleRelease \
+            :lib-container:assembleRelease \
+            :lib-database:assembleRelease \
+            :lib-datasource:assembleRelease \
+            :lib-datasource-okhttp:assembleRelease \
+            :lib-decoder:assembleRelease \
+            :lib-decoder-ffmpeg:assembleRelease \
+            :lib-effect:assembleRelease \
+            :lib-exoplayer:assembleRelease \
+            :lib-exoplayer-dash:assembleRelease \
+            :lib-exoplayer-hls:assembleRelease \
+            :lib-exoplayer-rtsp:assembleRelease \
+            :lib-exoplayer-smoothstreaming:assembleRelease \
+            :lib-extractor:assembleRelease \
+            :lib-mpvplayer:assembleRelease \
+            :lib-session:assembleRelease \
+            :lib-ui:assembleRelease \
+            :lib-ui-danmaku:assembleRelease \
+            --no-daemon \
+            --stacktrace
+
+      - name: Diagnose Media3 AAR output
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "=== All Media3 AAR files ==="
+
+          find official-media3 \
+            -type f -name "*.aar" \
+            -print | sort || true
+
+          echo "=== Module output directories ==="
+
+          for MODULE in \
+            common decoder exoplayer decoder_ffmpeg mpvplayer
+          do
+            echo "--- $MODULE ---"
+
+            find "official-media3/libraries/$MODULE" \
+              -maxdepth 6 \
+              -type d \
+              -name outputs \
+              -print || true
+          done
+
+      - name: Collect Media3 AAR files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p app/libs
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root = Path("official-media3")
+          modules = [
+              'common',
+              'container',
+              'database',
+              'datasource',
+              'datasource_okhttp',
+              'decoder',
+              'decoder_ffmpeg',
+              'effect',
+              'exoplayer',
+              'exoplayer_dash',
+              'exoplayer_hls',
+              'exoplayer_rtsp',
+              'exoplayer_smoothstreaming',
+              'extractor',
+              'mpvplayer',
+              'session',
+              'ui',
+              'ui_danmaku',
+          ]
+
+          for module in modules:
+              print(f"\nSearching AAR for {module}", flush=True)
+
+              module_dir = root / "libraries" / module
+              candidates = list(
+                  module_dir.rglob("*.aar")
+              )
+
+              candidates = [
+                  p for p in candidates
+                  if "release" in p.name.lower()
+                  and "androidTest" not in str(p)
+              ]
+
+              if not candidates:
+                  print("Available AARs in entire Media3 project:")
+                  for p in root.rglob("*.aar"):
+                      print(p)
+
+                  raise SystemExit(
+                      f"Missing release AAR for {module}. "
+                      "Check the Media3 build output."
+                  )
+
+              candidates.sort(
+                  key=lambda p: (
+                      "outputs/aar" not in str(p),
+                      len(str(p))
+                  )
+              )
+
+              source = candidates[0]
+
+              target = Path("app/libs") / (
+                  "lib-" + module.replace("_", "-")
+                  + "-release.aar"
+              )
+
+              shutil.copy2(source, target)
+
+              print(f"Copied: {source} -> {target}")
+
+          print("\nMedia3 AAR collection completed.")
+          PY
+
+     
+      - name: Package selected unified native libraries
+        run: python3 scripts/prepare_unified_media.py package
+
+      - name: Inspect native ELF dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          out = Path("native-elf-check")
+          for archive in [Path("app/libs/lib-mpvplayer-release.aar"), Path("app/libs/lib-decoder-ffmpeg-release.aar")]:
+              with ZipFile(archive) as z:
+                  for name in z.namelist():
+                      if name.startswith("jni/") and name.endswith(".so"):
+                          p = out / archive.stem / name
+                          p.parent.mkdir(parents=True, exist_ok=True)
+                          p.write_bytes(z.read(name))
+          PY
+          for ABI in arm64-v8a armeabi-v7a; do
+            echo "===== $ABI ====="
+            for SO in libmpv.so libplayer.so libffmpeg.so libffmpegJNI.so; do
+              FILE=$(find native-elf-check -type f -path "*/$ABI/$SO" -print -quit)
+              if [ -n "$FILE" ]; then
+                echo "----- $SO -----"
+                readelf -d "$FILE" | grep NEEDED || true
+              else
+                echo "MISSING $SO"
+              fi
+            done
+          done
+
+      - name: Configure APK signing
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          KEYSTORE="$RUNNER_TEMP/fongmi.jks"
+
+          keytool -genkeypair \
+            -noprompt \
+            -keystore "$KEYSTORE" \
+            -storetype PKCS12 \
+            -alias fongmi \
+            -keyalg RSA \
+            -keysize 3072 \
+            -validity 3650 \
+            -storepass FongMi584TempKey \
+            -keypass FongMi584TempKey \
+            -dname "CN=FongMi,O=Personal,C=US"
+
+          cat > local.properties <<EOF
+          sdk.dir=$ANDROID_HOME
+          storeFile=$KEYSTORE
+          keyAlias=fongmi
+          storePassword=FongMi584TempKey
+          EOF
+
+      - name: Verify FongMi native libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./gradlew \
+            :app:verifyLeanbackReleaseMpvNative \
+            :app:verifyMobileReleaseMpvNative \
+            --no-daemon \
+            --stacktrace
+
+      - name: Build FongMi 5.8.4 APK
+        shell: bash
+        env:
+          EDITION: ${{ inputs.edition || 'all' }}
+        run: |
+          set -euo pipefail
+
+          case "$EDITION" in
+            leanback)
+              ./gradlew :app:assembleLeanbackRelease \
+                --no-daemon --stacktrace
+              ;;
+            mobile)
+              ./gradlew :app:assembleMobileRelease \
+                --no-daemon --stacktrace
+              ;;
+            all)
+              ./gradlew \
+                :app:assembleLeanbackRelease \
+                :app:assembleMobileRelease \
+                --no-daemon --stacktrace
+              ;;
+          esac
+
+      - name: Collect APK
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p output
+
+          find app/build/outputs/apk \
+            -type f -name "*.apk" \
+            -exec cp {} output/ \;
+
+          ls -lh output/
+
+          test -n "$(find output -name '*.apk' -print -quit)"
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FongMi-5.8.4-${{ inputs.edition || 'all' }}
+          path: output/*.apk
+          if-no-files-found: error
+
+      - name: Upload diagnostic files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FongMi-5.8.4-diagnostics
+          path: |
+            native-elf-check/
+            official-media3/libraries/mpvplayer/buildout/outputs/
+            official-media3/libraries/decoder_ffmpeg/buildout/outputs/
+            app/build/reports/
+          if-no-files-found: ignore
