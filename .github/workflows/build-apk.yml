@@ -7,6 +7,12 @@ on:
       - fongmi
     paths:
       - '.github/workflows/build-apk.yml'
+      - 'app/**'
+      - 'scripts/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
   workflow_dispatch:
     inputs:
       edition:
@@ -23,14 +29,137 @@ permissions:
   contents: read
 
 jobs:
+  build-mpv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      MPV_GIT_URL: https://github.com/FongMi/mpv.git
+      MPV_GIT_REF: fongmi
+      MPV_ANDROID_ARCHES: armv7l arm64
+    steps:
+      - name: Checkout official MPV Android build scripts
+        uses: actions/checkout@v4
+        with:
+          repository: FongMi/mpv-android
+          ref: fongmi
+          path: mpv-source
+
+      - name: Record MPV source revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "MPV Android: $(git -C mpv-source rev-parse HEAD)"
+          echo "MPV source ref: $MPV_GIT_REF"
+          echo "MPV source commit: $(git ls-remote "$MPV_GIT_URL" "refs/heads/$MPV_GIT_REF" | awk '{print $1}')"
+
+      - name: Setup Java 17 for MPV native build
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Export reproducible dependency cache key
+        working-directory: mpv-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          buildscripts/include/ci.sh export >> "$GITHUB_ENV"
+
+      - name: Install MPV build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y autoconf pkgconf libtool ninja-build cmake python3-pip gperf nasm patch ant
+          sudo pip3 install --break-system-packages meson
+
+      - name: Cache MPV native dependency prefix
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/mpv-android-cache/
+          key: ${{ env.CACHE_IDENTIFIER }}
+
+      - name: Download or build MPV dependencies
+        working-directory: mpv-source
+        shell: bash
+        env:
+          CACHE_MODE: "folder"
+          CACHE_FOLDER: ${{ runner.temp }}/mpv-android-cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$CACHE_FOLDER"
+          buildscripts/include/ci.sh install
+
+      - name: Build MPV native libraries
+        working-directory: mpv-source
+        shell: bash
+        env:
+          MPV_ANDROID_NATIVE_ONLY: "1"
+        run: |
+          set -euo pipefail
+          buildscripts/include/ci.sh build
+
+      - name: Setup Java 8 for BD-J jars
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Build matching BD-J jars
+        working-directory: mpv-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash buildscripts/build-bdj-jars.sh
+
+      - name: Export renderer SDK
+        working-directory: mpv-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          buildscripts/export-renderer-sdk.sh
+
+      - name: Verify MPV native build outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ABI in arm64-v8a armeabi-v7a; do
+            for SO in libmpv.so libplayer.so libffmpeg.so libc++_shared.so; do
+              FILE="mpv-source/app/src/main/libs/$ABI/$SO"
+              if [ ! -s "$FILE" ]; then
+                echo "::error::Missing MPV output: $FILE"
+                find mpv-source/app/src/main -type f -name '*.so' -print || true
+                exit 1
+              fi
+            done
+          done
+          test -s mpv-source/build/renderer-sdk/files.sha256
+          echo "Both MPV ABIs and renderer SDK verified."
+
+      - name: Upload freshly built MPV native libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpv-android-fongmi
+          path: mpv-source/app/src/main/libs/**/*.so
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload freshly built renderer SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpv-android-renderer-sdk
+          path: mpv-source/build/renderer-sdk/**
+          if-no-files-found: error
+          retention-days: 7
+
   build:
+    needs: build-mpv
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
-      MPV_RUN_ID: "40209432515"
 
     steps:
       - name: Checkout FongMi 5.8.5
@@ -100,32 +229,17 @@ jobs:
               "$ANDROID_HOME/platforms/android-37"
           fi
 
-      - name: Download official MPV native libraries
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.UPSTREAM_ARTIFACT_TOKEN }}
-        run: |
-          set -euo pipefail
+      - name: Download freshly built MPV native libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: mpv-android-fongmi
+          path: native-input/mpv
 
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::Missing UPSTREAM_ARTIFACT_TOKEN"
-            exit 1
-          fi
-
-          mkdir -p native-input/mpv
-          mkdir -p native-input/renderer
-
-          gh run download "$MPV_RUN_ID" \
-            --repo FongMi/mpv-android \
-            --name mpv-android-fongmi \
-            --dir native-input/mpv
-
-          gh run download "$MPV_RUN_ID" \
-            --repo FongMi/mpv-android \
-            --name mpv-android-renderer-sdk \
-            --dir native-input/renderer
-
-          find native-input/mpv -type f -name "*.so"
+      - name: Download freshly built renderer SDK
+        uses: actions/download-artifact@v4
+        with:
+          name: mpv-android-renderer-sdk
+          path: native-input/renderer
 
       - name: Verify official MPV native files
         shell: bash
