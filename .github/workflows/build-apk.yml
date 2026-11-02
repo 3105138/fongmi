@@ -368,7 +368,7 @@ jobs:
           storeFile=$KEYSTORE
           keyAlias=$RELEASE_KEY_ALIAS
           storePassword=$RELEASE_STORE_PASSWORD
-keyPassword=$RELEASE_KEY_PASSWORD
+          keyPassword=$RELEASE_KEY_PASSWORD
           EOF
 
           echo "Release signing keystore validated and configured."
