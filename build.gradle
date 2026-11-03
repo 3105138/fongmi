@@ -1,138 +1,40 @@
-import com.android.build.api.artifact.SingleArtifact
-import com.fongmi.gradle.AbiApkPackaging
-
 plugins {
-    alias libs.plugins.android.application
+    alias libs.plugins.android.application apply false
+    alias libs.plugins.android.library apply false
 }
 
-def localProps = new Properties()
-rootProject.file('local.properties').withInputStream {
-    localProps.load(it)
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
 }
 
-android {
-    namespace = 'com.fongmi.android.tv'
-
-    compileSdk libs.versions.compileSdk.get().toInteger()
-
-    defaultConfig {
-        applicationId "com.fongmi.android.tv"
-        minSdk libs.versions.minSdk.get().toInteger()
-        targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 587
-        versionName "5.8.7"
-        manifestPlaceholders.runtimeCatalog = providers.gradleProperty('tvRuntimeCatalog').getOrElse('https://github.com/FongMi/Release/releases/download/module/catalog.json')
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
-            }
-        }
+tasks.register('apiJar', Jar) {
+    group = 'build'
+    description = 'Exports the compile-only API for external Java spiders.'
+    def catvodCompile = providers.provider { project(':catvod').tasks.named('compileReleaseJavaWithJavac').get() }
+    dependsOn catvodCompile
+    from(catvodCompile.map { it.destinationDirectory }) {
+        include 'com/github/catvod/Runtime*.class'
+        include 'com/github/catvod/Proxy.class'
+        include 'com/github/catvod/crawler/Spider.class'
+        include 'com/github/catvod/crawler/SpiderDebug.class'
+        include 'com/github/catvod/net/Download*.class'
+        include 'com/github/catvod/net/Net*.class'
+        include 'com/github/catvod/utils/Archive.class'
+        include 'com/github/catvod/utils/CallTimeout*.class'
+        include 'com/github/catvod/utils/Crypto*.class'
+        include 'com/github/catvod/utils/Decoder.class'
+        include 'com/github/catvod/utils/Dialog*.class'
+        include 'com/github/catvod/utils/Json.class'
+        include 'com/github/catvod/utils/Js.class'
+        include 'com/github/catvod/utils/Local.class'
+        include 'com/github/catvod/utils/Path.class'
+        include 'com/github/catvod/utils/Prefers.class'
+        include 'com/github/catvod/utils/Task*.class'
+        include 'com/github/catvod/utils/UriUtil.class'
+        include 'com/github/catvod/utils/Util.class'
     }
-
-    flavorDimensions = ["device"]
-
-    productFlavors {
-        leanback {
-            dimension "device"
-        }
-        mobile {
-            dimension "device"
-        }
-    }
-
-    splits {
-        abi {
-            enable = true
-            reset()
-            include "arm64-v8a", "armeabi-v7a"
-            universalApk = false
-        }
-    }
-
-    buildFeatures {
-        buildConfig = true
-        viewBinding = true
-    }
-
-    signingConfigs {
-        release {
-            storeFile file(localProps['storeFile'])
-            keyAlias localProps['keyAlias']
-            keyPassword localProps['storePassword']
-            storePassword localProps['storePassword']
-        }
-    }
-
-    buildTypes {
-        debug {
-            signingConfig = signingConfigs.release
-        }
-        release {
-            minifyEnabled = true
-            shrinkResources = true
-            signingConfig = signingConfigs.release
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    configurations.configureEach {
-        exclude group: 'stax', module: 'stax-api'
-        exclude group: 'xpp3', module: 'xpp3'
-        exclude group: 'com.android.support'
-        resolutionStrategy {
-            force libs.okhttp
-        }
-    }
-
-    lint {
-        disable 'UnsafeOptInUsageError'
-        disable 'ExpiredTargetSdkVersion'
-    }
-
-    compileOptions {
-        coreLibraryDesugaringEnabled = true
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
-    }
+    archiveFileName = 'catvod-api.jar'
+    destinationDirectory = layout.buildDirectory.dir('outputs/api')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
-
-AbiApkPackaging.configure(project, SingleArtifact.APK.INSTANCE)
-
-dependencies {
-    implementation fileTree(dir: "libs", include: ["*.aar"])
-    implementation project(':catvod')
-    implementation libs.appcompat
-    implementation libs.lifecycle.service
-    implementation libs.media
-    implementation libs.palette
-    implementation libs.recyclerview
-    implementation libs.room.runtime
-    implementation libs.splashscreen
-    implementation libs.swiperefreshlayout
-    implementation libs.viewpager2
-    implementation libs.android.gif.drawable
-    implementation libs.bundles.glide
-    implementation libs.bundles.jupnp
-    implementation libs.customactivityoncrash
-    implementation libs.eventbus
-    implementation libs.flexbox
-    implementation libs.rtmp.client
-    implementation libs.lottie
-    implementation libs.material
-    implementation libs.materialdesigncolors
-    implementation libs.nanohttpd
-    implementation libs.newpipeextractor
-    implementation libs.permissionx
-    implementation libs.simple.xml
-    implementation libs.textdrawable
-    leanbackImplementation libs.leanback
-    leanbackImplementation libs.androidautosize
-    mobileImplementation libs.biometric
-    mobileImplementation libs.zxing.android.embedded
-    annotationProcessor libs.room.compiler
-    annotationProcessor libs.eventbus.annotation.processor
-    annotationProcessor libs.glide.compiler
-    coreLibraryDesugaring libs.desugar
-}
-
-if (file('test.gradle').isFile()) apply from: 'test.gradle'

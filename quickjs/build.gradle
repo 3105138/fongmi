@@ -1,0 +1,35 @@
+plugins {
+    alias libs.plugins.android.library
+}
+
+android {
+    namespace = 'com.fongmi.android.tv.quickjs'
+
+    compileSdk libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk libs.versions.minSdk.get().toInteger()
+        targetSdk libs.versions.targetSdk.get().toInteger()
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+dependencies {
+    testImplementation libs.junit
+    testImplementation 'org.mockito:mockito-core:5.23.0'
+    testImplementation 'org.robolectric:robolectric:4.16'
+    testImplementation 'org.json:json:20160810'
+    implementation libs.jsoup
+    compileOnly project(':catvod')
+    testImplementation project(':catvod')
+    api files('libs/wrapper-java.jar')
+    coreLibraryDesugaring libs.desugar
+}
+
+if (file('test.gradle').isFile()) apply from: 'test.gradle'
