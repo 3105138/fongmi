@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: FongMi/mpv-android
-          ref: ${{ github.ref }}
+          ref: fongmi
           path: mpv-source
 
       - name: Record MPV source revisions
@@ -166,7 +166,7 @@ jobs:
       - name: Checkout FongMi 5.8.7
         uses: actions/checkout@v4
         with:
-          ref: fongmi
+          ref: ${{ github.ref }}
 
       - name: Checkout compatible Media3
         uses: actions/checkout@v4
@@ -499,7 +499,7 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Build FongMi 5.8.5 APK
+      - name: Build FongMi 5.8.7 APK
         shell: bash
         env:
           EDITION: ${{ inputs.edition || 'all' }}
@@ -543,7 +543,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.5-${{ inputs.edition || 'all' }}
+          name: FongMi-5.8.7-${{ inputs.edition || 'all' }}
           path: output/*.apk
           if-no-files-found: error
 
@@ -551,7 +551,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.5-diagnostics
+          name: FongMi-5.8.7-diagnostics
           path: |
             native-elf-check/
             official-media3/libraries/mpvplayer/buildout/outputs/
