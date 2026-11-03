@@ -1,5 +1,0 @@
--dontobfuscate
--keep class com.fongmi.chaquo.** { public *; }
--keep class com.fongmi.quickjs.** { public *; }
--keep class com.fongmi.nodejs.** { public *; }
--keep class com.xunlei.downloadlib.** { public *; }

@@ -1,10 +1,11 @@
 
-name: Build FongMi 5.8.5 Official MPV # Rebuild after Media3 audio-track API compatibility fix
+name: Build FongMi 5.8.7 Official MPV # Rebuild after Media3 audio-track API compatibility fix
 
 on:
   push:
     branches:
       - fongmi
+      - upgrade/5.8.7-test
     paths:
       - '.github/workflows/build-apk.yml'
       - 'app/**'
@@ -41,7 +42,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: FongMi/mpv-android
-          ref: fongmi
+          ref: ${{ github.ref }}
           path: mpv-source
 
       - name: Record MPV source revisions
@@ -162,7 +163,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
-      - name: Checkout FongMi 5.8.5
+      - name: Checkout FongMi 5.8.7
         uses: actions/checkout@v4
         with:
           ref: fongmi
