@@ -38,6 +38,8 @@ public class VodPlaybackController {
     private History lastHistory;
     private SkipSegment activeSkip;
     private boolean manualEndingTriggered;
+    private VodPlayRequest downloadRequest;
+    private java.util.function.Consumer<Result> downloadCallback;
 
     public VodPlaybackController(VodPlaybackHost host, VodDataSource dataSource, VodPlaybackState state) {
         this.host = host;
@@ -49,6 +51,7 @@ public class VodPlaybackController {
     }
 
     public void reset() {
+        finishDownloadResolution(null);
         dataSource.cancelContent();
         preloader.clear();
         state.reset();
@@ -128,6 +131,7 @@ public class VodPlaybackController {
     }
 
     public void onPlaybackResult(PlaybackResult<VodPlayRequest> playback) {
+        if (applyDownloadResult(playback)) return;
         if (playback == null || cannotApply(playback)) return;
         applyPlaybackResult(playback.result(), playback.request());
     }
@@ -387,6 +391,52 @@ public class VodPlaybackController {
         if (episode == null || !state.hasEpisode() || !state.getEpisode().equals(episode)) return null;
         Result result = state.getQuality();
         return result == null || result.getUrl().isEmpty() ? null : result;
+    }
+
+    public void resolveDownload(Episode episode, java.util.function.Consumer<Result> callback) {
+        if (episode == null || !state.hasFlags()) {
+            callback.accept(null);
+            return;
+        }
+        Result current = getDownloadResult(episode);
+        if (current != null) {
+            callback.accept(current);
+            return;
+        }
+        downloadCallback = callback;
+        downloadRequest = VodPlayRequest.create(host.getVodKey(), state.getFlag(), episode, state.isBuiltin(), state.getQualityPosition(), C.TIME_UNSET);
+        dataSource.playerContent(downloadRequest);
+    }
+
+    private void finishDownloadResolution(Result result) {
+        java.util.function.Consumer<Result> callback = downloadCallback;
+        downloadCallback = null;
+        downloadRequest = null;
+        if (callback != null) callback.accept(result);
+    }
+
+    private boolean applyDownloadResult(PlaybackResult<VodPlayRequest> playback) {
+        if (downloadRequest == null || playback == null || !downloadRequest.matches(playback.request())) return false;
+        Result result = playback.result();
+        VodPlayRequest request = downloadRequest;
+        if (result == null || !request.accepts(result)) {
+            finishDownloadResolution(null);
+            return true;
+        }
+        if (!result.getResolvedEpisodes().isEmpty()) {
+            Flag flag = state.findFlag(host.getVodKey(), request);
+            if (flag == null) {
+                finishDownloadResolution(null);
+                return true;
+            }
+            Episode selected = updateResolvedEpisodes(flag, request.getId(), result.getResolvedEpisodes());
+            VodPlayRequest next = request.withEpisode(selected);
+            downloadRequest = next;
+            dataSource.resolveContent(next, result);
+            return true;
+        }
+        finishDownloadResolution(result.hasMsg() || result.getRealUrl().isEmpty() ? null : result);
+        return true;
     }
 
     private boolean isPlaybackResolutionFailed() {
