@@ -18,6 +18,11 @@ import androidx.core.os.HandlerCompat;
 import androidx.media3.mpvplayer.MpvLibrary;
 
 import com.fongmi.android.tv.player.mpv.MpvUtil;
+import com.jeffmony.downloader.VideoDownloadConfig;
+import com.jeffmony.downloader.VideoDownloadManager;
+import com.jeffmony.downloader.utils.VideoStorageUtils;
+
+import java.io.File;
 import com.fongmi.android.tv.receiver.RuntimeReceiver;
 import com.fongmi.android.tv.ui.dialog.SpiderDialog;
 import com.fongmi.android.tv.utils.Notify;
@@ -96,9 +101,23 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        initDownloads();
         initRuntime();
         Notify.createChannel();
         registerActivityLifecycleCallbacks(this);
+    }
+
+    private void initDownloads() {
+        File directory = VideoStorageUtils.getVideoCacheDir(this);
+        if (!directory.exists()) directory.mkdirs();
+        VideoDownloadConfig config = new VideoDownloadManager.Build(this)
+                .setCacheRoot(directory.getAbsolutePath())
+                .setTimeOut(60000, 60000)
+                .setConcurrentCount(2)
+                .setIgnoreCertErrors(false)
+                .setShouldM3U8Merged(false)
+                .buildConfig();
+        VideoDownloadManager.getInstance().initConfig(config);
     }
 
     private void initRuntime() {

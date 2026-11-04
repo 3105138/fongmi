@@ -188,6 +188,7 @@ public class VodFragment extends BaseFragment implements ConfigListener, SiteLis
         if (item.getItemId() == R.id.keep) KeepActivity.start(requireActivity());
         else if (item.getItemId() == R.id.search) SearchActivity.start(requireActivity());
         else if (item.getItemId() == R.id.history) HistoryActivity.start(requireActivity());
+        else if (item.getItemId() == R.id.downloads) DownloadActivity.start(requireActivity());
         return true;
     }
 

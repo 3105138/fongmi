@@ -87,6 +87,10 @@
         </provider>
 
         <activity
+            android:name=".ui.activity.DownloadActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.activity.CrashActivity"
             android:process=":error_activity"
             android:theme="@style/Theme.Crash" />

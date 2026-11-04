@@ -17,6 +17,13 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/downloads"
+        android:icon="@drawable/ic_action_history"
+        android:title="下载列表"
+        app:iconTint="@color/white"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/history"
         android:icon="@drawable/ic_action_history"
         android:title="@string/app_history"
