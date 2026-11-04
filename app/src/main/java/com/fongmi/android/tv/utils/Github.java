@@ -5,10 +5,10 @@ import org.json.JSONObject;
 
 public class Github {
 
-    private static final String REPO = "FongMi/Release";
+    private static final String REPO = "wangjie310/release";
 
     public static String getReleases() {
-        return "https://api.github.com/repos/" + REPO + "/releases?per_page=100";
+        return "https://gitee.com/api/v5/repos/" + REPO + "/releases?per_page=100";
     }
 
     public static JSONObject getUpdate(JSONArray releases, String currentVersion, String filename) {
@@ -34,7 +34,9 @@ public class Github {
     }
 
     private static int[] version(String tag) {
-        String[] parts = (tag.startsWith("v") ? tag.substring(1) : tag).split("\\.", -1);
+        if (tag == null) return null;
+        tag = tag.trim();
+        String[] parts = (tag.startsWith("v") || tag.startsWith("V") ? tag.substring(1) : tag).split("\\.", -1);
         if (parts.length != 3) return null;
         int[] version = new int[3];
         try {
@@ -75,10 +77,12 @@ public class Github {
 
     public static JSONObject getAsset(JSONObject release, String name) {
         JSONArray assets = release.optJSONArray("assets");
-        if (assets == null) return null;
+        if (assets == null || assets.length() == 0) assets = release.optJSONArray("attach_files");
+        if (assets == null || assets.length() == 0) return null;
         for (int i = 0; i < assets.length(); i++) {
             JSONObject asset = assets.optJSONObject(i);
-            if (asset != null && name.equals(asset.optString("name")) && "uploaded".equals(asset.optString("state"))) return asset;
+            if (asset == null || !name.equals(asset.optString("name"))) continue;
+            if (asset.has("browser_download_url") || asset.has("download_url")) return asset;
         }
         return null;
     }
