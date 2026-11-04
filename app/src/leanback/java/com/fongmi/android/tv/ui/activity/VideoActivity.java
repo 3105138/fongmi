@@ -825,9 +825,19 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         new AlertDialog.Builder(this).setTitle("选择要下载的集数").setItems(names, (dialog, which) -> {
             Episode episode = episodes.get(which);
             String url = episode.getUrl();
-            if (!url.startsWith("http://") && !url.startsWith("https://")) { Notify.show("当前集数不是可直接下载的网络地址"); return; }
-            VideoTaskItem task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
-            VideoDownloadManager.getInstance().startDownload(task);
+            Result resolved = mVod.getDownloadResult(episode);
+            VideoTaskItem task;
+            if (resolved != null) {
+                PlaySpec spec = PlaySpec.from(resolved, getHistoryKey(), null);
+                task = new VideoTaskItem(spec.getUri().toString(), getPic(), getName() + " " + episode.getName(), getName());
+                VideoDownloadManager.getInstance().startDownload(task, spec.getHeaders());
+            } else if (url.startsWith("http://") || url.startsWith("https://")) {
+                task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
+                VideoDownloadManager.getInstance().startDownload(task);
+            } else {
+                Notify.show("该集还没有解析出下载地址，请先播放这一集后再下载");
+                return;
+            }
             Notify.show("已加入下载队列：" + episode.getName());
         }).show();
     }
