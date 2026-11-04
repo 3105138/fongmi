@@ -824,18 +824,19 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         new AlertDialog.Builder(this).setTitle("选择要下载的集数").setItems(names, (dialog, which) -> {
             Episode episode = episodes.get(which);
             mVod.resolveDownload(episode, resolved -> {
-                if (resolved == null) {
+                String url = episode.getUrl();
+                java.util.Map<String, String> headers = java.util.Collections.emptyMap();
+                if (resolved != null) {
+                    PlaySpec spec = PlaySpec.from(resolved, getHistoryKey(), null);
+                    url = spec.getUri().toString();
+                    headers = spec.getHeaders();
+                }
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     Notify.show("该集下载地址解析失败，请更换线路或稍后重试");
                     return;
                 }
-                PlaySpec spec = PlaySpec.from(resolved, getHistoryKey(), null);
-                String url = spec.getUri().toString();
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    Notify.show("解析结果不是可下载的 HTTP/HTTPS 地址");
-                    return;
-                }
                 VideoTaskItem task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
-                VideoDownloadManager.getInstance().startDownload(task, spec.getHeaders());
+                VideoDownloadManager.getInstance().startDownload(task, headers);
                 Notify.show("已加入下载队列：" + episode.getName());
             });
         }).show();
