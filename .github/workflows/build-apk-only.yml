@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - upgrade/5.8.7-test
+      - upgrade/5.8.7-download-test
     paths:
       - '.github/workflows/build-apk-only.yml'
       - 'app/src/main/java/com/fongmi/android/tv/Updater.java'
