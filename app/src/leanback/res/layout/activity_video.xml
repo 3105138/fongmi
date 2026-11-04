@@ -232,6 +232,38 @@
             android:orientation="vertical"
             android:paddingBottom="8dp">
 
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="16dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/detail_flag"
+                    android:textColor="@color/white"
+                    android:textSize="18sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/download_detail"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="下载"
+                    android:focusable="true"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_action_download" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
             <androidx.leanback.widget.HorizontalGridView
                 android:id="@+id/flag"
                 android:layout_width="match_parent"
