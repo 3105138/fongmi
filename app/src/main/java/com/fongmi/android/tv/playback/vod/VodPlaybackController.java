@@ -383,6 +383,12 @@ public class VodPlaybackController {
         nextEpisode(true);
     }
 
+    public Result getDownloadResult(Episode episode) {
+        if (episode == null || !state.hasEpisode() || !state.getEpisode().equals(episode)) return null;
+        Result result = state.getQuality();
+        return result == null || result.getUrl().isEmpty() ? null : result;
+    }
+
     private boolean isPlaybackResolutionFailed() {
         Result result = state.getQuality();
         return result.hasMsg() && result.getUrl().isEmpty();
