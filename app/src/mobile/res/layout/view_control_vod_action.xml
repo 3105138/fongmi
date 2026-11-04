@@ -19,16 +19,6 @@
             android:text="@string/detail_episode" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/download"
-            style="@style/Control"
-            android:text="下载" />
-
-        <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/download_list"
-            style="@style/Control"
-            android:text="下载列表" />
-
-        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/parse"
             style="@style/Control"
             android:text="@string/parse"
