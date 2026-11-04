@@ -271,6 +271,7 @@ public class CastActivity extends PlaybackActivity implements VodInput.Listener 
     }
 
     private void showControl() {
+        mInput.cancelSeek();
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         mBinding.control.action.reset.requestFocus();
         setR1Callback();
@@ -313,10 +314,12 @@ public class CastActivity extends PlaybackActivity implements VodInput.Listener 
     }
 
     private void onPaused() {
+        mInput.cancelSeek();
         controller().pause();
     }
 
     private void onPlay() {
+        mInput.cancelSeek();
         if (isEnded()) controller().seekTo(0);
         if (!player().isEmpty() && isIdle()) controller().prepare();
         controller().play();
@@ -419,7 +422,13 @@ public class CastActivity extends PlaybackActivity implements VodInput.Listener 
     }
 
     @Override
+    public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+        if (!playWhenReady && isOwner()) mInput.cancelSeek();
+    }
+
+    @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU && KeyUtil.isActionDown(event)) mInput.cancelSeek();
         if (KeyUtil.isMenuKey(event)) onToggle();
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isGone(mBinding.control.getRoot()) && service() != null && mInput.onKeyEvent(event)) return true;
@@ -500,9 +509,14 @@ public class CastActivity extends PlaybackActivity implements VodInput.Listener 
 
     @Override
     protected void onBackInvoked() {
-        if (isVisible(mBinding.control.getRoot())) hideControl();
-        else if (isVisible(mBinding.widget.center)) hideCenter();
-        else super.onBackInvoked();
+        if (isVisible(mBinding.control.getRoot())) {
+            hideControl();
+        } else if (isVisible(mBinding.widget.center)) {
+            mInput.cancelSeek();
+            hideCenter();
+        } else {
+            super.onBackInvoked();
+        }
     }
 
     private void releaseRenderer() {

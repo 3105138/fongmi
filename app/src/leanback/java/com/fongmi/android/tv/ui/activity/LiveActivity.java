@@ -66,6 +66,7 @@ import com.fongmi.android.tv.ui.dialog.SpeedSettingDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Traffic;
@@ -433,6 +434,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void showUI() {
         if (isVisible(mBinding.recycler) || mGroupAdapter.getItemCount() == 0) return;
+        mInput.cancelSeek();
         mBinding.recycler.setVisibility(View.VISIBLE);
         setPosition();
         setUITimer();
@@ -548,6 +550,11 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         if (isPlaying || isPaused() || isWebPlaybackActive()) updatePlayControl(isPlaying);
     }
 
+    @Override
+    public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+        if (!playWhenReady && isOwner()) mInput.cancelSeek();
+    }
+
     private void updatePlayControl(boolean isPlaying) {
         mBinding.control.action.playPause.setText(isPlaying ? R.string.pause : R.string.play);
     }
@@ -597,6 +604,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void showControl(View view) {
+        mInput.cancelSeek();
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.top.setVisibility(View.VISIBLE);
         App.post(view::requestFocus, 25);
@@ -997,11 +1005,13 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onPaused() {
+        mInput.cancelSeek();
         if (pauseWebPlayback()) return;
         controller().pause();
     }
 
     private void onPlay() {
+        mInput.cancelSeek();
         if (resumeWebPlayback()) return;
         controller().play();
     }
@@ -1012,6 +1022,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU && KeyUtil.isActionDown(event)) mInput.cancelSeek();
         if (isVisible(mBinding.control.getRoot())) setR1Callback();
         if (isVisible(mBinding.control.getRoot())) mFocus2 = getCurrentFocus();
         if (service() != null && mInput.onKeyEvent(event)) return true;

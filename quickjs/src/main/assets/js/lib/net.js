@@ -151,7 +151,8 @@ function cached(key, options, loader, id, background = false) {
     return new Promise((resolve, reject) => {
         validateCache(key, options, loader);
         const settings = background ? Object.assign({}, options, {stale: false}) : options;
-        const accepted = host.cached(key, JSON.stringify(settings), id, ticket => loadCache(ticket, loader), (json, error) => {
+        const accepted = host.cached(key, JSON.stringify(settings), id, ticket => loadCache(ticket, loader), (json, error, failure) => {
+            if (failure != null) return reject(failure.reason);
             if (error != null) return reject(new Error(String(error)));
             try {
                 resolve(background ? undefined : JSON.parse(json));
@@ -171,7 +172,7 @@ function validateCache(key, options, loader) {
 }
 
 function refresh(key, options, loader, id = null) {
-    cached(key, options, loader, id, true).catch(error => console.error(`Cache ${key}: ${error.message}`));
+    cached(key, options, loader, id, true).catch(error => console.error(`Cache ${key}: ${error?.message ?? String(error)}`));
 }
 
 function download(url, path, options = {}) {
@@ -287,7 +288,7 @@ export function page(items, pg, limit, total) {
 }
 
 function loadCache(ticket, loader) {
-    return Promise.resolve().then(loader).then(stringify).then(json => host.cacheResolve(ticket, json, null), error => host.cacheResolve(ticket, null, error?.message || String(error)));
+    return Promise.resolve().then(loader).then(stringify).then(json => host.cacheResolve(ticket, json, null), reason => host.cacheResolve(ticket, null, {reason}));
 }
 
 export function stringify(value) {
@@ -359,4 +360,4 @@ export const net = {
     getUserAgent: () => host.getUserAgent()
 };
 
-export const {s2t, t2s, openWeb, getPort, danmakuUrl, joinUrl, htmlQuery, md5X, sha256X, randomX, aesX, desX, rsaX} = host;
+export const {s2t, t2s, openWeb, danmakuUrl, joinUrl, htmlQuery, md5X, sha256X, randomX, aesX, desX, rsaX, wasm} = host;

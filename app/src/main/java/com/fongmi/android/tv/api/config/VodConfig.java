@@ -71,8 +71,12 @@ public class VodConfig extends BaseConfig {
         get().clear().config(config).load(callback);
     }
 
+    private static final String DEFAULT_URL = "https://gitee.com/wangjie310/tv/raw/main/wjtv.json";
+
     public VodConfig init() {
-        return config(Config.vod());
+        Config config = Config.vod();
+        if (config.isEmpty()) config = Config.find(DEFAULT_URL, VOD);
+        return config(config);
     }
 
     public VodConfig config(Config config) {
@@ -81,6 +85,14 @@ public class VodConfig extends BaseConfig {
     }
 
     public VodConfig clear() {
+        return clear(false);
+    }
+
+    public void destroy() {
+        clear(true);
+    }
+
+    private VodConfig clear(boolean exiting) {
         ads = null;
         doh = null;
         home = null;
@@ -90,7 +102,8 @@ public class VodConfig extends BaseConfig {
         flags = null;
         rules = null;
         parses = null;
-        BaseLoader.get().clear();
+        if (exiting) BaseLoader.get().destroy();
+        else BaseLoader.get().clear();
         RuleConfig.get().invalidate();
         return this;
     }

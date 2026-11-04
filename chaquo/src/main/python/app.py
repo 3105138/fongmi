@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
 from runtime.dialog import DialogAdapter
-from runtime.loader import Runtime, SourceNotFoundError
+from runtime.loader import Runtime, SourceNotFoundError, cleanup_failure, raise_failure
 from runtime.net import JsAdapter, LocalAdapter, NetAdapter
 
 
@@ -66,12 +66,8 @@ def boolean_result(value):
 
 
 def init(ru, extend):
-    try:
-        ru.runtime.prepare(ru)
-        sync_result(ru.init(extend))
-    except BaseException:
-        release(ru)
-        raise
+    ru.runtime.prepare(ru)
+    sync_result(ru.init(extend))
 
 
 def bindNet(ru, net, user_agent=None, local=None, streams=None, js=None):
@@ -79,6 +75,7 @@ def bindNet(ru, net, user_agent=None, local=None, streams=None, js=None):
     ru.local = LocalAdapter(local)
     ru.js = JsAdapter(js)
     ru.dialog = DialogAdapter()
+    ru.runtime.bind_helpers(ru)
 
 
 def homeContent(ru, filter):
@@ -140,16 +137,29 @@ def danmaku(ru, id, emitter):
 
 
 def destroy(ru):
+    failure = None
     try:
         close_dialog(ru)
+    except BaseException as error:
+        failure = error
+    try:
         sync_result(ru.destroy())
-    finally:
-        release(ru)
+    except BaseException as error:
+        failure = cleanup_failure(failure, error)
+    release(ru, failure)
 
 
-def release(ru):
-    close_dialog(ru)
-    ru.runtime.close()
+def release(ru, failure=None):
+    try:
+        close_dialog(ru)
+    except BaseException as error:
+        failure = cleanup_failure(failure, error)
+    try:
+        ru.runtime.close()
+    except BaseException as error:
+        failure = cleanup_failure(failure, error)
+    if failure is not None:
+        raise_failure(failure)
 
 
 def close_dialog(ru):

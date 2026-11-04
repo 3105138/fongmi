@@ -38,6 +38,11 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class Updater {
 
@@ -155,9 +160,53 @@ public class Updater {
         String name = tag.startsWith("v") ? tag.substring(1) : tag;
         String desc = Github.getNotes(release.optString("body"), BuildConfig.FLAVOR);
         JSONObject asset = Github.getAsset(release, filename);
-        UpdatePackage update = new UpdatePackage(name, asset.optString("browser_download_url"), asset.optLong("size"), asset.isNull("digest") ? "" : asset.optString("digest"));
+        String url = asset.optString("browser_download_url");
+        if (url.isEmpty()) url = asset.optString("download_url");
+        long size = asset.optLong("size", -1);
+        if (size <= 0) size = getAssetSize(url);
+        UpdatePackage update = new UpdatePackage(name, url, size, asset.isNull("digest") ? "" : asset.optString("digest"));
         File cached = verifyCachedApk(update);
         App.post(() -> onReleaseChecked(update, desc, cached));
+    }
+
+    private long getAssetSize(String url) throws IOException {
+        if (url == null || url.isEmpty()) throw new IOException("Update download URL is missing");
+        okhttp3.OkHttpClient client = OkHttp.client().newBuilder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build();
+
+        Request head = new Request.Builder().url(url).head().build();
+        try (Response response = client.newCall(head).execute()) {
+            long size = response.body() == null ? -1 : response.body().contentLength();
+            if (size > 0) return size;
+            size = contentRangeSize(response.header("Content-Range"));
+            if (size > 0) return size;
+        } catch (IOException ignored) {
+            // Some release hosts do not support HEAD; retry with a one-byte range request.
+        }
+
+        Request range = new Request.Builder().url(url).header("Range", "bytes=0-0").get().build();
+        try (Response response = client.newCall(range).execute()) {
+            long size = contentRangeSize(response.header("Content-Range"));
+            if (size > 0) return size;
+            if (response.code() == 200 && response.body() != null) {
+                size = response.body().contentLength();
+                if (size > 0) return size;
+            }
+        }
+        throw new IOException("Unable to determine update APK size");
+    }
+
+    private long contentRangeSize(String contentRange) {
+        if (contentRange == null) return -1;
+        Matcher matcher = Pattern.compile("/([0-9]+)$").matcher(contentRange.trim());
+        if (!matcher.find()) return -1;
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private void onReleaseChecked(UpdatePackage update, String desc, File cached) {

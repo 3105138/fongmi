@@ -35,7 +35,10 @@ public abstract class SeekInput<T extends SeekInput.Listener> extends BaseInput<
     }
 
     protected final boolean onSeekKey(KeyEvent event) {
-        if (!KeyUtil.isLeftKey(event) && !KeyUtil.isRightKey(event)) return false;
+        if (!KeyUtil.isLeftKey(event) && !KeyUtil.isRightKey(event)) {
+            if (KeyUtil.isActionDown(event)) cancelSeek();
+            return false;
+        }
         if (KeyUtil.isActionDown(event)) onSeekKeyDown(event);
         else if (KeyUtil.isActionUp(event)) onSeekKeyUp(event);
         return true;
@@ -80,8 +83,12 @@ public abstract class SeekInput<T extends SeekInput.Listener> extends BaseInput<
             return;
         }
         long time = consumeSeekTime();
-        seekPending = false;
-        listener.onSeekEnd(time);
+        if (time == 0) {
+            cancelSeek();
+        } else {
+            seekPending = false;
+            listener.onSeekEnd(time);
+        }
     }
 
     protected void onSeekUnavailable(KeyEvent event) {

@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 
 import okhttp3.Dns;
 
-public abstract class Spider {
+public abstract class Spider implements AutoCloseable {
 
     public String siteKey;
     public Net net;
@@ -83,7 +83,11 @@ public abstract class Spider {
         url.appendQueryParameter(name, text);
     }
 
+    public void init(Context context) throws Exception {
+    }
+
     public void init(Context context, String extend) throws Exception {
+        init(context);
     }
 
     public String homeContent(boolean filter) throws Exception {
@@ -139,5 +143,33 @@ public abstract class Spider {
     }
 
     public void destroy() {
+    }
+
+    @Override
+    public void close() {
+        closeDialog();
+        Throwable failure = closeJavaScript();
+        failure = closeNetwork(failure);
+        if (failure instanceof RuntimeException error) throw error;
+        if (failure instanceof Error error) throw error;
+    }
+
+    private Throwable closeJavaScript() {
+        try {
+            js.close();
+            return null;
+        } catch (RuntimeException | Error error) {
+            return error;
+        }
+    }
+
+    private Throwable closeNetwork(Throwable failure) {
+        try {
+            if (net != null) net.close();
+        } catch (RuntimeException | Error error) {
+            if (failure == null) failure = error;
+            else if (failure != error) failure.addSuppressed(error);
+        }
+        return failure;
     }
 }

@@ -1,5 +1,7 @@
 <resources xmlns:xliff="http://schemas.android.com/apk/res-auto">
 
+    <string name="app_name">影视盒子</string>
+
     <!-- App -->
     <string name="app_keep">我的收藏</string>
     <string name="app_history">最近观看</string>

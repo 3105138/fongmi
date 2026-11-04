@@ -550,6 +550,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void seekPlayback(long position) {
+        mInput.cancelSeek();
         long current = getPlayerPosition();
         if (current >= 0) seekTo(position - current);
     }
@@ -1137,6 +1138,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private void showControl(View view) {
+        mInput.cancelSeek();
         updateDiscMenuVisibility();
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         view.requestFocus();
@@ -1411,6 +1413,11 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     @Override
+    public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+        if (!playWhenReady && isOwner()) mInput.cancelSeek();
+    }
+
+    @Override
     public void onPositionDiscontinuity(Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
         if (isPlaybackCurrent() && oldPosition.mediaItemIndex == newPosition.mediaItemIndex && (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT)) mVod.onPlaybackSeek();
     }
@@ -1493,11 +1500,13 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private void onPaused() {
+        mInput.cancelSeek();
         if (pauseWebPlayback()) return;
         controller().pause();
     }
 
     private void onPlay() {
+        mInput.cancelSeek();
         if (resumeWebPlayback()) return;
         if (mHistory != null && isEnded() && !isDiscMenuActive() && !isIsoPlaybackOngoing()) controller().seekTo(mVod.openingPositionMs());
         if (!player().isEmpty() && isIdle()) controller().prepare();
@@ -1511,11 +1520,13 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private boolean onSeekBack() {
+        mInput.cancelSeek();
         controller().seekBack();
         return true;
     }
 
     private boolean onSeekForward() {
+        mInput.cancelSeek();
         controller().seekForward();
         return true;
     }
@@ -1547,9 +1558,11 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.KEYCODE_MENU && KeyUtil.isActionDown(event)) mInput.cancelSeek();
         boolean discMenuShortcut = keyCode == KeyEvent.KEYCODE_MEDIA_TOP_MENU || keyCode == KeyEvent.KEYCODE_TV_CONTENTS_MENU;
         boolean discMenuNavigation = keyCode != KeyEvent.KEYCODE_MENU && isFullscreen() && isGone(mBinding.control.getRoot());
         if ((discMenuShortcut || discMenuNavigation) && dispatchDiscMenuKey(event)) {
+            mInput.cancelSeek();
             hideControl();
             return true;
         }
@@ -1652,6 +1665,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         } else if (handleDiscMenuBack()) {
             return;
         } else if (isVisible(mBinding.widget.center)) {
+            mInput.cancelSeek();
             hideCenter();
         } else if (isFullscreen()) {
             exitFullscreen();

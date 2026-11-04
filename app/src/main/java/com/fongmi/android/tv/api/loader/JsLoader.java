@@ -1,21 +1,16 @@
 package com.fongmi.android.tv.api.loader;
 
 import com.fongmi.android.tv.App;
-import com.fongmi.android.tv.exception.SpiderLoadException;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.runtime.QuickJsRuntime;
 import com.github.catvod.utils.RuntimeModule;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import dalvik.system.DexClassLoader;
 
-public class JsLoader {
+public class JsLoader extends SpiderLoader {
 
-    private final ConcurrentHashMap<String, Spider> spiders;
-    private final ReentrantReadWriteLock lifecycle;
     private final QuickJsRuntime loader;
     private final QuickJsRuntime.Session module;
     private volatile String recent;
@@ -29,76 +24,23 @@ public class JsLoader {
     }
 
     private JsLoader(QuickJsRuntime loader) {
-        spiders = new ConcurrentHashMap<>();
-        lifecycle = new ReentrantReadWriteLock();
         module = loader.session();
         this.loader = loader;
     }
 
-    public void clear() {
-        lifecycle.writeLock().lock();
-        try {
-            Throwable failure = destroySpiders();
-            failure = clearModule(failure);
-            spiders.clear();
-            recent = null;
-            if (failure instanceof RuntimeException error) throw error;
-            if (failure instanceof Error error) throw error;
-        } finally {
-            lifecycle.writeLock().unlock();
-        }
+    @Override
+    protected void clearReferences() {
+        recent = null;
+        module.clear();
     }
 
-    private Throwable destroySpiders() {
-        Throwable failure = null;
-        for (Spider spider : spiders.values()) failure = destroySpider(spider, failure);
-        return failure;
-    }
-
-    private Throwable destroySpider(Spider spider, Throwable failure) {
-        try {
-            spider.destroy();
-        } catch (RuntimeException | Error error) {
-            if (failure == null) failure = error;
-            else if (failure != error) failure.addSuppressed(error);
-        }
-        return failure;
-    }
-
-    private Throwable clearModule(Throwable failure) {
-        try {
-            module.clear();
-        } catch (RuntimeException | Error error) {
-            if (failure == null) failure = error;
-            else if (failure != error) failure.addSuppressed(error);
-        }
-        return failure;
-    }
-
-    public void setRecent(String recent) {
+    public synchronized void setRecent(String recent) {
+        checkOpen();
         this.recent = recent;
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
-        lifecycle.readLock().lock();
-        try {
-            return spiders.computeIfAbsent(key, k -> createSpider(k, api, ext, jar));
-        } finally {
-            lifecycle.readLock().unlock();
-        }
-    }
-
-    private Spider createSpider(String key, String api, String ext, String jar) {
-        Spider spider = null;
-        try {
-            spider = newSpider(key, api, BaseLoader.get().dex(jar));
-            spider.init(App.get(), ext);
-            return spider;
-        } catch (Exception | Error error) {
-            if (spider != null) destroySpider(spider, error);
-            if (error instanceof Error fatal) throw fatal;
-            throw new SpiderLoadException(error);
-        }
+        return load(key, App.get(), ext, () -> newSpider(key, api, BaseLoader.get().dex(jar)));
     }
 
     Spider newSpider(String key, String api, DexClassLoader dex) {
@@ -107,14 +49,8 @@ public class JsLoader {
         return spider;
     }
 
-    void cancel() {
-        module.clear();
-    }
-
     public Object[] proxy(Map<String, String> params) throws Exception {
-        String key = recent;
-        if (key == null) return null;
-        Spider spider = spiders.get(key);
+        Spider spider = findSpider(recent);
         return spider != null ? spider.proxy(params) : null;
     }
 }

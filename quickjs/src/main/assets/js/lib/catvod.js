@@ -1,9 +1,9 @@
 import host from 'catvod:host';
-import {net, local, js, proxyUrl, link, page} from './net.js';
+import {net, local, js, wasm, proxyUrl, link, page} from './net.js';
 import {dialog} from './dialog.js';
 
-export {net, local, js, dialog};
-export {proxyUrl, danmakuUrl, getPort, openWeb, s2t, t2s, joinUrl, htmlQuery, md5X, sha256X, randomX, aesX, desX, rsaX, link, page} from './net.js';
+export {net, local, js, dialog, wasm};
+export {proxyUrl, danmakuUrl, openWeb, s2t, t2s, joinUrl, htmlQuery, md5X, sha256X, randomX, aesX, desX, rsaX, link, page} from './net.js';
 
 function bindMethods(spider) {
     const names = new Set(['constructor', ...Object.getOwnPropertyNames(spider)]);
@@ -23,6 +23,7 @@ export class Spider {
         this.net = net;
         this.local = local;
         this.js = js;
+        this.wasm = wasm;
         this.dialog = dialog;
         bindMethods(this);
     }

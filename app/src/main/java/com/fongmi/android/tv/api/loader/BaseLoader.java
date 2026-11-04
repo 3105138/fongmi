@@ -16,22 +16,28 @@ import com.github.catvod.utils.Task;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import dalvik.system.DexClassLoader;
 
 public class BaseLoader {
 
-    private final JarLoader jarLoader;
-    private final NodeLoader nodeLoader;
+    private final List<SpiderLoader> retiredLoaders;
+    private volatile JarLoader jarLoader;
+    private volatile NodeLoader nodeLoader;
     private volatile PyLoader pyLoader;
     private volatile JsLoader jsLoader;
 
     private BaseLoader() {
         jarLoader = new JarLoader();
         nodeLoader = new NodeLoader();
+        retiredLoaders = new ArrayList<>();
     }
 
     public static BaseLoader get() {
@@ -67,38 +73,45 @@ public class BaseLoader {
     }
 
     public void clear() {
-        nodeLoader.clear();
-        PyLoader previousPy;
-        JsLoader previousJs;
-        synchronized (this) {
-            previousPy = pyLoader;
-            previousJs = jsLoader;
-            if (previousPy != null) pyLoader = new PyLoader(previousPy);
-            if (previousJs != null) jsLoader = new JsLoader(previousJs);
-        }
-        Task.execute(() -> destroy(previousPy, previousJs));
+        clear(false);
     }
 
-    private void destroy(PyLoader py, JsLoader js) {
-        Throwable failure = clearJar();
-        failure = clearPython(py, failure);
-        failure = clearJavaScript(js, failure);
+    public void destroy() {
+        clear(true);
+    }
+
+    private void clear(boolean exiting) {
+        List<SpiderLoader> previous;
+        List<SpiderLoader> retired;
+        synchronized (this) {
+            previous = Stream.of(nodeLoader, jarLoader, pyLoader, jsLoader).filter(Objects::nonNull).toList();
+            retiredLoaders.addAll(previous);
+            retired = exiting ? new ArrayList<>(retiredLoaders) : List.of();
+            if (exiting) retiredLoaders.clear();
+            jarLoader = new JarLoader();
+            nodeLoader = new NodeLoader();
+            if (exiting) {
+                pyLoader = null;
+                jsLoader = null;
+            } else {
+                if (pyLoader != null) pyLoader = new PyLoader(pyLoader);
+                if (jsLoader != null) jsLoader = new JsLoader(jsLoader);
+            }
+        }
+        Task.execute(() -> clearLoaders(previous, retired));
+    }
+
+    private void clearLoaders(List<SpiderLoader> previous, List<SpiderLoader> retired) {
+        Throwable failure = null;
+        for (SpiderLoader loader : previous) failure = clearLoader(loader, failure);
+        for (SpiderLoader loader : retired) failure = destroyLoader(loader, failure);
         if (failure instanceof RuntimeException error) throw error;
         if (failure instanceof Error error) throw error;
     }
 
-    private Throwable clearJar() {
+    private Throwable clearLoader(SpiderLoader loader, Throwable failure) {
         try {
-            jarLoader.clear();
-            return null;
-        } catch (RuntimeException | Error error) {
-            return error;
-        }
-    }
-
-    private Throwable clearPython(PyLoader loader, Throwable failure) {
-        try {
-            if (loader != null) loader.clear();
+            loader.clear();
         } catch (RuntimeException | Error error) {
             if (failure == null) failure = error;
             else if (failure != error) failure.addSuppressed(error);
@@ -106,9 +119,9 @@ public class BaseLoader {
         return failure;
     }
 
-    private Throwable clearJavaScript(JsLoader loader, Throwable failure) {
+    private Throwable destroyLoader(SpiderLoader loader, Throwable failure) {
         try {
-            if (loader != null) loader.clear();
+            loader.destroy();
         } catch (RuntimeException | Error error) {
             if (failure == null) failure = error;
             else if (failure != error) failure.addSuppressed(error);
@@ -188,8 +201,9 @@ public class BaseLoader {
     public void parseJar(String jar, boolean recent) {
         if (TextUtils.isEmpty(jar)) return;
         String key = Crypto.md5(jar);
-        jarLoader.parseJar(key, jar);
-        if (recent) jarLoader.setRecent(key);
+        JarLoader loader = jarLoader;
+        loader.parseJar(key, jar);
+        if (recent) loader.setRecent(key);
     }
 
     public DexClassLoader dex(String jar) {
