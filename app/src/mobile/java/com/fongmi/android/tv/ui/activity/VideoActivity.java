@@ -365,8 +365,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
             else enterFullscreen();
         });
         mBinding.control.danmaku.setOnClickListener(view -> onDanmakuShow());
-        mBinding.control.action.download.setOnClickListener(view -> onDownload());
-        mBinding.control.action.downloadList.setOnClickListener(view -> DownloadActivity.start(this));
         mBinding.downloadDetail.setOnClickListener(view -> onDownload());
         mBinding.control.action.text.setOnClickListener(this::onTrack);
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
