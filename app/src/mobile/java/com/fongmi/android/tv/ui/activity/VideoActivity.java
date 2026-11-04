@@ -356,6 +356,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         mBinding.control.heading.setOnLongClickListener(view -> onChange());
         mBinding.control.right.lock.setOnClickListener(view -> onLock());
         mBinding.control.right.rotate.setOnClickListener(view -> onRotate());
+        mBinding.control.right.fullscreen.setOnClickListener(view -> {
+            if (isFullscreen()) exitFullscreen();
+            else enterFullscreen();
+        });
         mBinding.control.danmaku.setOnClickListener(view -> onDanmakuShow());
         mBinding.control.action.text.setOnClickListener(this::onTrack);
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
@@ -1244,6 +1248,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
         mBinding.control.right.rotate.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
+        mBinding.control.right.fullscreen.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.keep.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
         mBinding.control.action.getRoot().setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
         mBinding.control.right.lock.setVisibility(isFullscreen() ? View.VISIBLE : View.GONE);
