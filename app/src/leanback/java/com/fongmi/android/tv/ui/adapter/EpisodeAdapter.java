@@ -43,6 +43,8 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         return 0;
     }
 
+    public List<Episode> getItems() { return mItems; }
+
     public Episode getActivated() {
         return mItems.isEmpty() ? new Episode() : mItems.get(getPosition());
     }

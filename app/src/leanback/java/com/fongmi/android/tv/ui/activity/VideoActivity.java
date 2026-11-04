@@ -93,6 +93,10 @@ import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Traffic;
 import com.fongmi.android.tv.utils.Util;
+import com.jeffmony.downloader.VideoDownloadManager;
+import com.jeffmony.downloader.model.VideoTaskItem;
+
+import androidx.appcompat.app.AlertDialog;
 import com.github.bassaer.library.MDColor;
 import com.github.catvod.utils.UriUtil;
 
@@ -306,6 +310,8 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         mBinding.video.setOnClickListener(view -> onVideo());
         mBinding.change.setOnClickListener(view -> onChange());
         mBinding.content.setOnClickListener(view -> onContent());
+        mBinding.control.action.download.setOnClickListener(view -> onDownload());
+        mBinding.control.action.downloadList.setOnClickListener(view -> DownloadActivity.start(this));
         mBinding.control.action.text.setOnClickListener(this::onTrack);
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
         mBinding.control.action.video.setOnClickListener(this::onTrack);
@@ -809,6 +815,21 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
                 setRedirect(true);
             }
         };
+    }
+
+    private void onDownload() {
+        List<Episode> episodes = mEpisodeAdapter.getItems();
+        if (episodes == null || episodes.isEmpty()) { Notify.show("暂无可下载集数"); return; }
+        String[] names = new String[episodes.size()];
+        for (int i = 0; i < episodes.size(); i++) names[i] = episodes.get(i).getDesc() + episodes.get(i).getName();
+        new AlertDialog.Builder(this).setTitle("选择要下载的集数").setItems(names, (dialog, which) -> {
+            Episode episode = episodes.get(which);
+            String url = episode.getUrl();
+            if (!url.startsWith("http://") && !url.startsWith("https://")) { Notify.show("当前集数不是可直接下载的网络地址"); return; }
+            VideoTaskItem task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
+            VideoDownloadManager.getInstance().startDownload(task);
+            Notify.show("已加入下载队列：" + episode.getName());
+        }).show();
     }
 
     @Override

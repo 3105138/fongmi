@@ -15,6 +15,9 @@ on:
       - 'app/src/mobile/res/**'
       - 'app/src/leanback/res/**'
       - 'app/build.gradle'
+      - 'app/src/main/java/**'
+      - 'app/src/mobile/java/**'
+      - 'app/src/leanback/java/**'
       - 'gradle.properties'
   workflow_dispatch:
     inputs:

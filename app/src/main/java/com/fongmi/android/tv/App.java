@@ -101,7 +101,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
-        initDownloads();
+        if (isMainProcess()) initDownloads();
         initRuntime();
         Notify.createChannel();
         registerActivityLifecycleCallbacks(this);
