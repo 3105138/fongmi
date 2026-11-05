@@ -749,8 +749,23 @@ public class VodPlaybackController {
         VodPlayRequest request = VodPlayRequest.create(host.getVodKey(), flag, episode, state.isBuiltin(), state.getQualityPosition(), startPositionMs);
         state.setPendingRequest(request);
         publishPlaybackMetadata(episode);
+        if (isLocalFileEpisode(episode)) {
+            Result local = Result.empty();
+            local.setUrl(episode.getUrl());
+            local.setDirect();
+            applyPlaybackState(local, request);
+            renderPlaybackResult(local, episode);
+            host.onPlaybackRequested();
+            startPlayback(local, startPositionMs == C.TIME_UNSET ? 0 : startPositionMs, episode);
+            return;
+        }
         dataSource.playerContent(request);
         host.onPlaybackRequested();
+    }
+
+    private boolean isLocalFileEpisode(Episode episode) {
+        return episode != null && episode.getUrl() != null
+                && episode.getUrl().regionMatches(true, 0, "file://", 0, 7);
     }
 
     private Episode findEpisode(VodPlayRequest request) {
