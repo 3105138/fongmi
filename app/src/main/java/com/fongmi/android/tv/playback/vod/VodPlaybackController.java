@@ -63,6 +63,10 @@ public class VodPlaybackController {
         manualEndingTriggered = false;
     }
 
+    public void loadLocalPlaylist(Vod item) {
+        if (item != null) detailLoaded(item);
+    }
+
     public void checkId() {
         String id = resolveVodId();
         if (id.isEmpty() || id.startsWith(SEARCH_PREFIX)) detailEmpty(false);
