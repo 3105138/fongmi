@@ -358,7 +358,6 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         mBinding.video.setOnClickListener(view -> onVideo());
         mBinding.change.setOnClickListener(view -> onChange());
         mBinding.content.setOnClickListener(view -> onContent());
-        mBinding.downloadDetail.setOnClickListener(view -> onDownload());
         mBinding.control.action.text.setOnClickListener(this::onTrack);
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
         mBinding.control.action.video.setOnClickListener(this::onTrack);
