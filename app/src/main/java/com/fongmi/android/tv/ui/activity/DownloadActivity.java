@@ -21,6 +21,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.color.MaterialColors;
+
 import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.utils.Notify;
 import com.jeffmony.downloader.VideoDownloadManager;
@@ -33,17 +35,22 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class DownloadActivity extends AppCompatActivity {
 
-    private static final int BG = 0xFF141218;
-    private static final int CARD = 0xFF24212B;
-    private static final int ACCENT = 0xFFFF7043;
-    private static final int TEXT = 0xFFFFFFFF;
-    private static final int MUTED = 0xFFB8B3C0;
+    private int surfaceColor;
+    private int cardColor;
+    private int primaryColor;
+    private int textColor;
+    private int mutedColor;
+    private int buttonColor;
+    private int buttonTextColor;
 
     private final List<VideoTaskItem> items = new ArrayList<>();
     private final List<DownloadGroup> groups = new ArrayList<>();
+    private final Set<String> deletedUrls = new HashSet<>();
     private TaskAdapter adapter;
     private ListView list;
     private TextView title;
@@ -57,26 +64,35 @@ public class DownloadActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+        // Read Material 3 colors from the app's active Day/Night theme so this screen
+        // follows the same dynamic palette as the rest of the mobile app.
+        surfaceColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, Color.BLACK);
+        cardColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceVariant, surfaceColor);
+        primaryColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, Color.WHITE);
+        textColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, Color.WHITE);
+        mutedColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, textColor);
+        buttonColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, cardColor);
+        buttonTextColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSecondaryContainer, textColor);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(12));
-        root.setBackgroundColor(BG);
+        root.setBackgroundColor(surfaceColor);
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         TextView back = new TextView(this);
         back.setText("‹");
         back.setTextSize(34);
-        back.setTextColor(TEXT);
+        back.setTextColor(textColor);
         back.setGravity(Gravity.CENTER);
-        back.setBackground(round(0xFF292530, dp(12)));
+        back.setBackground(round(buttonColor, dp(12)));
         header.addView(back, new LinearLayout.LayoutParams(dp(44), dp(44)));
         back.setOnClickListener(v -> showGroups());
 
         title = new TextView(this);
         title.setText("下载管理");
         title.setTextSize(21);
-        title.setTextColor(TEXT);
+        title.setTextColor(textColor);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(dp(14), 0, 0, 0);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
@@ -85,17 +101,17 @@ public class DownloadActivity extends AppCompatActivity {
         TextView hint = new TextView(this);
         hint.setText("已下载的视频和正在下载的任务");
         hint.setTextSize(13);
-        hint.setTextColor(MUTED);
+        hint.setTextColor(mutedColor);
         hint.setPadding(dp(58), 0, 0, dp(14));
         root.addView(hint);
 
         TextView pauseAll = new TextView(this);
         pauseAll.setText("暂停全部任务");
         pauseAll.setTextSize(13);
-        pauseAll.setTextColor(TEXT);
+        pauseAll.setTextColor(buttonTextColor);
         pauseAll.setGravity(Gravity.CENTER);
         pauseAll.setPadding(dp(16), 0, dp(16), 0);
-        pauseAll.setBackground(round(0xFF393440, dp(18)));
+        pauseAll.setBackground(round(buttonColor, dp(18)));
         LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(-2, dp(38));
         pauseParams.bottomMargin = dp(12);
         root.addView(pauseAll, pauseParams);
@@ -199,13 +215,23 @@ public class DownloadActivity extends AppCompatActivity {
     }
 
     private void delete(VideoTaskItem item, boolean deleteFile) {
+        String url = item.getUrl();
+        if (!TextUtils.isEmpty(url)) deletedUrls.add(url);
+        // The SDK resets the item and emits onDownloadDefault after deleting it.
+        // That callback must remove the row, never reinsert the now-empty item.
         VideoDownloadManager.getInstance().deleteVideoTask(item, deleteFile);
-        items.remove(item);
+        removeItem(item);
+    }
+
+    private void removeItem(VideoTaskItem item) {
+        String url = item.getUrl();
+        items.removeIf(value -> TextUtils.equals(value.getUrl(), url));
         rebuildGroups();
     }
 
     private void update(VideoTaskItem item) {
         runOnUiThread(() -> {
+            if (TextUtils.isEmpty(item.getUrl()) || deletedUrls.contains(item.getUrl())) return;
             int index = -1;
             for (int i = 0; i < items.size(); i++) {
                 if (TextUtils.equals(items.get(i).getUrl(), item.getUrl())) {
@@ -225,8 +251,9 @@ public class DownloadActivity extends AppCompatActivity {
         for (VideoTaskItem item : items) {
             String groupName = item.getGroupName();
             if (TextUtils.isEmpty(groupName)) groupName = item.getTitle();
-            if (TextUtils.isEmpty(groupName)) groupName = item.getFileName();
-            if (TextUtils.isEmpty(groupName)) groupName = "未命名视频";
+            // A reset/deleted SDK item has empty metadata. Do not turn its MD5
+            // local filename into a fake "unknown" series group.
+            if (TextUtils.isEmpty(groupName)) continue;
             DownloadGroup group = grouped.get(groupName);
             if (group == null) {
                 group = new DownloadGroup(groupName, item.getCoverUrl());
@@ -253,8 +280,16 @@ public class DownloadActivity extends AppCompatActivity {
     }
 
     private final DownloadListener listener = new DownloadListener() {
-        @Override public void onDownloadDefault(VideoTaskItem item) { update(item); }
-        @Override public void onDownloadPending(VideoTaskItem item) { update(item); }
+        @Override public void onDownloadDefault(VideoTaskItem item) {
+            runOnUiThread(() -> {
+                if (!TextUtils.isEmpty(item.getUrl())) deletedUrls.add(item.getUrl());
+                removeItem(item);
+            });
+        }
+        @Override public void onDownloadPending(VideoTaskItem item) {
+            if (!TextUtils.isEmpty(item.getUrl())) deletedUrls.remove(item.getUrl());
+            update(item);
+        }
         @Override public void onDownloadPrepare(VideoTaskItem item) { update(item); }
         @Override public void onDownloadStart(VideoTaskItem item) { update(item); }
         @Override public void onDownloadProgress(VideoTaskItem item) { update(item); }
@@ -296,7 +331,7 @@ public class DownloadActivity extends AppCompatActivity {
                 LinearLayout line = new LinearLayout(DownloadActivity.this);
                 line.setGravity(Gravity.CENTER_VERTICAL);
                 line.setPadding(dp(12), dp(12), dp(12), dp(12));
-                line.setBackground(round(CARD, dp(16)));
+                line.setBackground(round(cardColor, dp(16)));
                 ImageView cover = new ImageView(DownloadActivity.this);
                 cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 line.addView(cover, new LinearLayout.LayoutParams(dp(96), dp(72)));
@@ -305,17 +340,17 @@ public class DownloadActivity extends AppCompatActivity {
                 texts.setPadding(dp(14), 0, 0, 0);
                 line.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
                 TextView name = new TextView(DownloadActivity.this);
-                name.setTextColor(TEXT);
+                name.setTextColor(textColor);
                 name.setTextSize(16);
                 name.setMaxLines(1);
                 name.setEllipsize(TextUtils.TruncateAt.END);
                 name.setTypeface(null, android.graphics.Typeface.BOLD);
                 TextView state = new TextView(DownloadActivity.this);
-                state.setTextColor(MUTED);
+                state.setTextColor(mutedColor);
                 state.setTextSize(13);
                 state.setPadding(0, dp(5), 0, 0);
                 TextView progress = new TextView(DownloadActivity.this);
-                progress.setTextColor(0xFF9993A1);
+                progress.setTextColor(mutedColor);
                 progress.setTextSize(12);
                 progress.setPadding(0, dp(3), 0, 0);
                 texts.addView(name);
@@ -333,7 +368,7 @@ public class DownloadActivity extends AppCompatActivity {
                 VideoTaskItem task = currentGroup.items.get(position);
                 row.name.setText(episodeName(task));
                 row.state.setText(state(task));
-                row.state.setTextColor(task.isSuccessState() ? 0xFF72D69B : task.isErrorState() ? 0xFFFF8A80 : MUTED);
+                row.state.setTextColor(task.isSuccessState() ? primaryColor : task.isErrorState() ? Color.RED : mutedColor);
                 row.progress.setText(task.getPercentString() + "  ·  " + task.getDownloadSizeString());
                 Glide.with(DownloadActivity.this).load(task.getCoverUrl()).centerCrop().into(row.cover);
             } else {
@@ -346,7 +381,7 @@ public class DownloadActivity extends AppCompatActivity {
                 }
                 row.name.setText(group.name);
                 row.state.setText(completed == group.items.size() ? "全部下载完成" : "已下载 " + completed + " / " + group.items.size() + " 集");
-                row.state.setTextColor(completed == group.items.size() ? 0xFF72D69B : MUTED);
+                row.state.setTextColor(completed == group.items.size() ? primaryColor : mutedColor);
                 row.progress.setText(running > 0 ? running + " 个任务正在下载  ·  点击查看详情" : "点击查看下载详情");
                 Glide.with(DownloadActivity.this).load(group.coverUrl).centerCrop().into(row.cover);
             }
