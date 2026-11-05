@@ -21,9 +21,12 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.DynamicColorsOptions;
 import com.google.android.material.color.MaterialColors;
 
 import com.bumptech.glide.Glide;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.Notify;
 import com.jeffmony.downloader.VideoDownloadManager;
 import com.jeffmony.downloader.listener.DownloadListener;
@@ -64,10 +67,15 @@ public class DownloadActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
+        // Match BaseActivity: apply the user's selected dynamic palette before the
+        // Activity resolves its Material 3 theme attributes.
+        int dynamicColor = Setting.getDynamicColor();
+        if (dynamicColor != 0) {
+            DynamicColors.applyToActivityIfAvailable(this, new DynamicColorsOptions.Builder().setContentBasedSource(dynamicColor).build());
+        }
         super.onCreate(state);
-        // Read Material 3 colors from the app's active Day/Night theme so this screen
-        // follows the same dynamic palette as the rest of the mobile app.
-        surfaceColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, Color.BLACK);
+        // Use the app window background for the page, not the always-light surface tone.
+        surfaceColor = MaterialColors.getColor(this, android.R.attr.colorBackground, Color.BLACK);
         cardColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceVariant, surfaceColor);
         primaryColor = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, Color.WHITE);
         textColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, Color.WHITE);
@@ -119,6 +127,7 @@ public class DownloadActivity extends AppCompatActivity {
         pauseAll.setOnClickListener(v -> VideoDownloadManager.getInstance().pauseAllDownloadTasks());
 
         list = new ListView(this);
+        list.setBackgroundColor(surfaceColor);
         list.setCacheColorHint(Color.TRANSPARENT);
         list.setDivider(new ColorDrawable(Color.TRANSPARENT));
         list.setDividerHeight(dp(9));
