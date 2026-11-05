@@ -15,6 +15,7 @@ import android.widget.AbsListView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -58,7 +59,7 @@ public class DownloadActivity extends AppCompatActivity {
     private TaskAdapter adapter;
     private ListView list;
     private TextView title;
-    private boolean showingEpisodes;
+    private boolean showingEpisodes = true;
     private DownloadGroup currentGroup;
 
     public static void start(Activity activity) {
@@ -91,40 +92,30 @@ public class DownloadActivity extends AppCompatActivity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         TextView back = new TextView(this);
         back.setText("‹");
-        back.setTextSize(34);
+        back.setTextSize(32);
         back.setTextColor(textColor);
         back.setGravity(Gravity.CENTER);
         back.setBackground(round(buttonColor, dp(12)));
-        header.addView(back, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        back.setOnClickListener(v -> showGroups());
+        header.addView(back, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        back.setOnClickListener(v -> finish());
 
         title = new TextView(this);
-        title.setText("下载管理");
+        title.setText("下载");
         title.setTextSize(21);
         title.setTextColor(textColor);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setPadding(dp(14), 0, 0, 0);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView deleteAll = new TextView(this);
+        deleteAll.setText("⌫");
+        deleteAll.setTextSize(25);
+        deleteAll.setTextColor(textColor);
+        deleteAll.setGravity(Gravity.CENTER);
+        deleteAll.setBackground(round(buttonColor, dp(12)));
+        header.addView(deleteAll, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        deleteAll.setOnClickListener(v -> deleteAll());
         root.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
-
-        TextView hint = new TextView(this);
-        hint.setText("已下载的视频和正在下载的任务");
-        hint.setTextSize(13);
-        hint.setTextColor(mutedColor);
-        hint.setPadding(dp(58), 0, 0, dp(14));
-        root.addView(hint);
-
-        TextView pauseAll = new TextView(this);
-        pauseAll.setText("暂停全部任务");
-        pauseAll.setTextSize(13);
-        pauseAll.setTextColor(buttonTextColor);
-        pauseAll.setGravity(Gravity.CENTER);
-        pauseAll.setPadding(dp(16), 0, dp(16), 0);
-        pauseAll.setBackground(round(buttonColor, dp(18)));
-        LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(-2, dp(38));
-        pauseParams.bottomMargin = dp(12);
-        root.addView(pauseAll, pauseParams);
-        pauseAll.setOnClickListener(v -> VideoDownloadManager.getInstance().pauseAllDownloadTasks());
 
         list = new ListView(this);
         list.setBackgroundColor(surfaceColor);
@@ -139,8 +130,7 @@ public class DownloadActivity extends AppCompatActivity {
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         list.setOnItemClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
-            if (item instanceof DownloadGroup group) openGroup(group);
-            else if (item instanceof VideoTaskItem task) onEpisodeClick(task);
+            if (item instanceof VideoTaskItem task) onEpisodeClick(task);
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
@@ -192,28 +182,27 @@ public class DownloadActivity extends AppCompatActivity {
         VideoActivity.file(this, Uri.fromFile(file), displayName, task.getCoverUrl());
     }
 
-    private void openGroup(DownloadGroup group) {
-        currentGroup = group;
-        showingEpisodes = true;
-        title.setText(group.name);
-        adapter.notifyDataSetChanged();
-    }
-
     private void showGroups() {
-        if (!showingEpisodes) {
-            finish();
-            return;
-        }
-        showingEpisodes = false;
-        currentGroup = null;
-        title.setText("下载管理");
-        adapter.notifyDataSetChanged();
+        finish();
     }
 
     @Override
     public void onBackPressed() {
-        if (showingEpisodes) showGroups();
-        else super.onBackPressed();
+        finish();
+    }
+
+    private void deleteAll() {
+        if (items.isEmpty()) return;
+        new AlertDialog.Builder(this)
+                .setTitle("清空下载列表")
+                .setMessage("确定删除全部下载任务及其本地文件吗？")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("删除", (dialog, which) -> {
+                    List<VideoTaskItem> copy = new ArrayList<>(items);
+                    for (VideoTaskItem item : copy) delete(item, true);
+                    Notify.show("下载列表已清空");
+                })
+                .show();
     }
 
     private void toggle(VideoTaskItem item) {
@@ -260,37 +249,16 @@ public class DownloadActivity extends AppCompatActivity {
     }
 
     private void rebuildGroups() {
-        String currentName = showingEpisodes && currentGroup != null ? currentGroup.name : null;
-        Map<String, DownloadGroup> grouped = new LinkedHashMap<>();
-        for (VideoTaskItem item : items) {
-            String groupName = item.getGroupName();
-            if (TextUtils.isEmpty(groupName)) groupName = item.getTitle();
-            // A reset/deleted SDK item has empty metadata. Do not turn its MD5
-            // local filename into a fake "unknown" series group.
-            if (TextUtils.isEmpty(groupName)) continue;
-            DownloadGroup group = grouped.get(groupName);
-            if (group == null) {
-                group = new DownloadGroup(groupName, item.getCoverUrl());
-                grouped.put(groupName, group);
-            }
-            group.items.add(item);
-        }
         groups.clear();
-        groups.addAll(grouped.values());
-        if (currentName != null) {
-            currentGroup = null;
-            for (DownloadGroup group : groups) {
-                if (TextUtils.equals(group.name, currentName)) {
-                    currentGroup = group;
-                    break;
-                }
-            }
-            if (currentGroup == null) {
-                showingEpisodes = false;
-                title.setText("下载管理");
-            }
+        DownloadGroup all = new DownloadGroup("下载", items.isEmpty() ? "" : items.get(0).getCoverUrl());
+        for (VideoTaskItem item : items) {
+            if (!TextUtils.isEmpty(item.getUrl())) all.items.add(item);
         }
-        adapter.notifyDataSetChanged();
+        if (!all.items.isEmpty()) groups.add(all);
+        currentGroup = all;
+        showingEpisodes = true;
+        if (title != null) title.setText("下载");
+        if (adapter != null) adapter.notifyDataSetChanged();
     }
 
     private final DownloadListener listener = new DownloadListener() {
@@ -363,14 +331,21 @@ public class DownloadActivity extends AppCompatActivity {
                 state.setTextColor(mutedColor);
                 state.setTextSize(13);
                 state.setPadding(0, dp(5), 0, 0);
+                ProgressBar bar = new ProgressBar(DownloadActivity.this, null, android.R.attr.progressBarStyleHorizontal);
+                bar.setMax(100);
+                bar.setProgressTintList(android.content.res.ColorStateList.valueOf(primaryColor));
+                bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(buttonColor));
+                LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(-1, dp(4));
+                barParams.topMargin = dp(8);
                 TextView progress = new TextView(DownloadActivity.this);
                 progress.setTextColor(mutedColor);
                 progress.setTextSize(12);
-                progress.setPadding(0, dp(3), 0, 0);
+                progress.setPadding(0, dp(4), 0, 0);
                 texts.addView(name);
                 texts.addView(state);
+                texts.addView(bar, barParams);
                 texts.addView(progress);
-                row = new Row(cover, name, state, progress);
+                row = new Row(cover, name, state, progress, bar);
                 line.setTag(row);
                 convertView = line;
                 convertView.setLayoutParams(new AbsListView.LayoutParams(-1, -2));
@@ -383,7 +358,8 @@ public class DownloadActivity extends AppCompatActivity {
                 row.name.setText(episodeName(task));
                 row.state.setText(state(task));
                 row.state.setTextColor(task.isSuccessState() ? primaryColor : task.isErrorState() ? Color.RED : mutedColor);
-                row.progress.setText(task.getPercentString() + "  ·  " + task.getDownloadSizeString());
+                row.bar.setProgress(task.isSuccessState() ? 100 : Math.max(0, Math.min(100, Math.round(task.getPercent()))));
+                row.progress.setText(task.getSpeedString() + "  ·  " + task.getDownloadSizeString() + "  ·  " + task.getPercentString());
                 Glide.with(DownloadActivity.this).load(task.getCoverUrl()).centerCrop().into(row.cover);
             } else {
                 DownloadGroup group = groups.get(position);
@@ -436,11 +412,13 @@ public class DownloadActivity extends AppCompatActivity {
         final TextView name;
         final TextView state;
         final TextView progress;
-        Row(ImageView cover, TextView name, TextView state, TextView progress) {
+        final ProgressBar bar;
+        Row(ImageView cover, TextView name, TextView state, TextView progress, ProgressBar bar) {
             this.cover = cover;
             this.name = name;
             this.state = state;
             this.progress = progress;
+            this.bar = bar;
         }
     }
 }

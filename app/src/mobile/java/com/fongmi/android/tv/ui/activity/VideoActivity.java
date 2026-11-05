@@ -122,6 +122,7 @@ import com.jeffmony.downloader.VideoDownloadManager;
 import com.jeffmony.downloader.model.VideoTaskItem;
 
 import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.github.catvod.utils.UriUtil;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -895,79 +896,107 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
     }
 
     private void showDownloadEpisodeDialog(List<Episode> episodes) {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(ResUtil.dp2px(20), ResUtil.dp2px(18), ResUtil.dp2px(20), ResUtil.dp2px(12));
-        content.setBackground(new android.graphics.drawable.GradientDrawable() {{
-            setColor(0xFF211E27);
-            setCornerRadius(ResUtil.dp2px(18));
-        }});
+        content.setPadding(ResUtil.dp2px(20), ResUtil.dp2px(18), ResUtil.dp2px(20), ResUtil.dp2px(18));
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, Color.BLACK));
+        background.setCornerRadii(new float[]{ResUtil.dp2px(22), ResUtil.dp2px(22), ResUtil.dp2px(22), ResUtil.dp2px(22), 0, 0, 0, 0});
+        content.setBackground(background);
 
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
         TextView heading = new TextView(this);
-        heading.setText("选择下载集数");
-        heading.setTextColor(Color.WHITE);
-        heading.setTextSize(19);
+        heading.setText("下载");
+        heading.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, Color.WHITE));
+        heading.setTextSize(20);
         heading.setTypeface(null, android.graphics.Typeface.BOLD);
-        content.addView(heading);
+        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView downloadList = new TextView(this);
+        downloadList.setText("下载列表  ›");
+        downloadList.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFFFF8A65));
+        downloadList.setTextSize(14);
+        downloadList.setPadding(ResUtil.dp2px(10), ResUtil.dp2px(8), 0, ResUtil.dp2px(8));
+        header.addView(downloadList);
+        downloadList.setOnClickListener(view -> {
+            dialog.dismiss();
+            DownloadActivity.start(this);
+        });
+        content.addView(header);
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText(getName() + "  ·  共 " + episodes.size() + " 集");
-        subtitle.setTextColor(0xFFB8B3C0);
-        subtitle.setTextSize(13);
-        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
-        subParams.topMargin = ResUtil.dp2px(6);
-        subParams.bottomMargin = ResUtil.dp2px(14);
-        content.addView(subtitle, subParams);
+        TextView range = new TextView(this);
+        range.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFFB8B3C0));
+        range.setTextSize(13);
+        LinearLayout.LayoutParams rangeParams = new LinearLayout.LayoutParams(-1, -2);
+        rangeParams.topMargin = ResUtil.dp2px(8);
+        rangeParams.bottomMargin = ResUtil.dp2px(14);
+        content.addView(range, rangeParams);
 
+        android.widget.GridLayout grid = new android.widget.GridLayout(this);
+        grid.setColumnCount(4);
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setFillViewport(false);
-        LinearLayout rows = new LinearLayout(this);
-        rows.setOrientation(LinearLayout.VERTICAL);
-        for (Episode episode : episodes) {
-            LinearLayout row = new LinearLayout(this);
-            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            row.setPadding(ResUtil.dp2px(14), 0, ResUtil.dp2px(14), 0);
-            android.graphics.drawable.GradientDrawable rowBg = new android.graphics.drawable.GradientDrawable();
-            rowBg.setColor(0xFF302B37);
-            rowBg.setCornerRadius(ResUtil.dp2px(12));
-            row.setBackground(rowBg);
-            TextView label = new TextView(this);
-            label.setText(episode.getDesc() + episode.getName());
-            label.setTextColor(Color.WHITE);
-            label.setTextSize(15);
-            label.setSingleLine(true);
-            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            row.addView(label, new LinearLayout.LayoutParams(0, ResUtil.dp2px(48), 1));
-            TextView action = new TextView(this);
-            action.setText("下载");
-            action.setTextColor(0xFFFF8A65);
-            action.setTextSize(13);
-            action.setTypeface(null, android.graphics.Typeface.BOLD);
-            row.addView(action);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, ResUtil.dp2px(48));
-            rowParams.bottomMargin = ResUtil.dp2px(8);
-            rows.addView(row, rowParams);
-            row.setOnClickListener(view -> {
-                AlertDialog dialog = (AlertDialog) view.getTag();
-                if (dialog != null) dialog.dismiss();
-                startDownloadEpisode(episode);
-            });
-        }
-        scroll.addView(rows);
-        content.addView(scroll, new LinearLayout.LayoutParams(-1, ResUtil.dp2px(360)));
+        scroll.addView(grid);
+        content.addView(scroll, new LinearLayout.LayoutParams(-1, ResUtil.dp2px(300)));
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(content)
-                .setNegativeButton("关闭", null)
-                .create();
-        for (int i = 0; i < rows.getChildCount(); i++) rows.getChildAt(i).setTag(dialog);
-        dialog.setOnShowListener(ignored -> {
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
-                dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.88f), -2);
+        LinearLayout pages = new LinearLayout(this);
+        pages.setGravity(android.view.Gravity.CENTER);
+        TextView previous = new TextView(this);
+        previous.setText("‹ 上一页");
+        TextView next = new TextView(this);
+        next.setText("下一页 ›");
+        for (TextView control : new TextView[]{previous, next}) {
+            control.setTextSize(13);
+            control.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFFFF8A65));
+            control.setPadding(ResUtil.dp2px(18), ResUtil.dp2px(12), ResUtil.dp2px(18), ResUtil.dp2px(8));
+            pages.addView(control);
+        }
+        LinearLayout.LayoutParams pageParams = new LinearLayout.LayoutParams(-1, -2);
+        pageParams.topMargin = ResUtil.dp2px(6);
+        content.addView(pages, pageParams);
+
+        final int pageSize = 30;
+        final int[] page = {0};
+        Runnable render = () -> {
+            grid.removeAllViews();
+            int first = page[0] * pageSize;
+            int last = Math.min(first + pageSize, episodes.size());
+            range.setText((first + 1) + " - " + last + "    共 " + episodes.size() + " 集");
+            previous.setVisibility(page[0] == 0 ? View.INVISIBLE : View.VISIBLE);
+            next.setVisibility(last >= episodes.size() ? View.INVISIBLE : View.VISIBLE);
+            for (int i = first; i < last; i++) {
+                final Episode episode = episodes.get(i);
+                TextView cell = new TextView(this);
+                cell.setText(String.valueOf(i + 1));
+                cell.setGravity(android.view.Gravity.CENTER);
+                cell.setTextSize(15);
+                cell.setTypeface(null, android.graphics.Typeface.BOLD);
+                cell.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, Color.WHITE));
+                android.graphics.drawable.GradientDrawable cellBg = new android.graphics.drawable.GradientDrawable();
+                cellBg.setColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceVariant, 0xFF302B37));
+                cellBg.setCornerRadius(ResUtil.dp2px(10));
+                cell.setBackground(cellBg);
+                android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams(
+                        android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f),
+                        android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f));
+                lp.width = 0;
+                lp.height = ResUtil.dp2px(46);
+                lp.setMargins(ResUtil.dp2px(4), ResUtil.dp2px(4), ResUtil.dp2px(4), ResUtil.dp2px(4));
+                grid.addView(cell, lp);
+                cell.setOnClickListener(view -> startDownloadEpisode(episode));
             }
-        });
+        };
+        previous.setOnClickListener(view -> { if (page[0] > 0) { page[0]--; render.run(); } });
+        next.setOnClickListener(view -> { if ((page[0] + 1) * pageSize < episodes.size()) { page[0]++; render.run(); } });
+        render.run();
+
+        dialog.setContentView(content);
         dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
     private void startDownloadEpisode(Episode episode) {
