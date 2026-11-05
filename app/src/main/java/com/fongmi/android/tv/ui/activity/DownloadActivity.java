@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 public class DownloadActivity extends AppCompatActivity {
@@ -68,7 +69,7 @@ public class DownloadActivity extends AppCompatActivity {
         // follows the same dynamic palette as the rest of the mobile app.
         surfaceColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, Color.BLACK);
         cardColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceVariant, surfaceColor);
-        primaryColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, Color.WHITE);
+        primaryColor = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, Color.WHITE);
         textColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface, Color.WHITE);
         mutedColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant, textColor);
         buttonColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSecondaryContainer, cardColor);
@@ -225,7 +226,11 @@ public class DownloadActivity extends AppCompatActivity {
 
     private void removeItem(VideoTaskItem item) {
         String url = item.getUrl();
-        items.removeIf(value -> TextUtils.equals(value.getUrl(), url));
+        Iterator<VideoTaskItem> iterator = items.iterator();
+        while (iterator.hasNext()) {
+            VideoTaskItem value = iterator.next();
+            if (TextUtils.equals(value.getUrl(), url)) iterator.remove();
+        }
         rebuildGroups();
     }
 
