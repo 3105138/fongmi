@@ -163,8 +163,13 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
     }
 
     public static void file(FragmentActivity activity, Uri fileUri) {
+        file(activity, fileUri, null, null);
+    }
+
+    public static void file(FragmentActivity activity, Uri fileUri, String name, String pic) {
         if (fileUri == null || activity.isFinishing() || activity.isDestroyed()) return;
-        start(activity, SiteApi.LOCAL, fileUri.toString(), FileUtil.getDisplayName(fileUri));
+        String displayName = TextUtils.isEmpty(name) ? FileUtil.getDisplayName(fileUri) : name;
+        start(activity, SiteApi.LOCAL, fileUri.toString(), displayName, pic);
     }
 
     public static void cast(Activity activity, History history) {
@@ -879,30 +884,99 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         view.setText(substring(sb.toString(), 2));
     }
 
-    private void onDownload() {
-        List<Episode> episodes = mEpisodeAdapter.getItems();
-        if (episodes == null || episodes.isEmpty()) { Notify.show("暂无可下载集数"); return; }
-        String[] names = new String[episodes.size()];
-        for (int i = 0; i < episodes.size(); i++) names[i] = episodes.get(i).getDesc() + episodes.get(i).getName();
-        new AlertDialog.Builder(this).setTitle("选择要下载的集数").setItems(names, (dialog, which) -> {
-            Episode episode = episodes.get(which);
-            mVod.resolveDownload(episode, resolved -> {
-                String url = episode.getUrl();
-                java.util.Map<String, String> headers = java.util.Collections.emptyMap();
-                if (resolved != null) {
-                    PlaySpec spec = PlaySpec.from(resolved, getHistoryKey(), null);
-                    url = spec.getUri().toString();
-                    headers = spec.getHeaders();
-                }
-                if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                    Notify.show("该集下载地址解析失败，请更换线路或稍后重试");
-                    return;
-                }
-                VideoTaskItem task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
-                VideoDownloadManager.getInstance().startDownload(task, headers);
-                Notify.show("已加入下载队列：" + episode.getName());
+    private void showDownloadEpisodeDialog(List<Episode> episodes) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(ResUtil.dp2px(20), ResUtil.dp2px(18), ResUtil.dp2px(20), ResUtil.dp2px(12));
+        content.setBackground(new android.graphics.drawable.GradientDrawable() {{
+            setColor(0xFF211E27);
+            setCornerRadius(ResUtil.dp2px(18));
+        }});
+
+        TextView heading = new TextView(this);
+        heading.setText("选择下载集数");
+        heading.setTextColor(Color.WHITE);
+        heading.setTextSize(19);
+        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        content.addView(heading);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText(getName() + "  ·  共 " + episodes.size() + " 集");
+        subtitle.setTextColor(0xFFB8B3C0);
+        subtitle.setTextSize(13);
+        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
+        subParams.topMargin = ResUtil.dp2px(6);
+        subParams.bottomMargin = ResUtil.dp2px(14);
+        content.addView(subtitle, subParams);
+
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setFillViewport(false);
+        LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        for (Episode episode : episodes) {
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(ResUtil.dp2px(14), 0, ResUtil.dp2px(14), 0);
+            android.graphics.drawable.GradientDrawable rowBg = new android.graphics.drawable.GradientDrawable();
+            rowBg.setColor(0xFF302B37);
+            rowBg.setCornerRadius(ResUtil.dp2px(12));
+            row.setBackground(rowBg);
+            TextView label = new TextView(this);
+            label.setText(episode.getDesc() + episode.getName());
+            label.setTextColor(Color.WHITE);
+            label.setTextSize(15);
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            row.addView(label, new LinearLayout.LayoutParams(0, ResUtil.dp2px(48), 1));
+            TextView action = new TextView(this);
+            action.setText("下载");
+            action.setTextColor(0xFFFF8A65);
+            action.setTextSize(13);
+            action.setTypeface(null, android.graphics.Typeface.BOLD);
+            row.addView(action);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, ResUtil.dp2px(48));
+            rowParams.bottomMargin = ResUtil.dp2px(8);
+            rows.addView(row, rowParams);
+            row.setOnClickListener(view -> {
+                AlertDialog dialog = (AlertDialog) view.getTag();
+                if (dialog != null) dialog.dismiss();
+                startDownloadEpisode(episode);
             });
-        }).show();
+        }
+        scroll.addView(rows);
+        content.addView(scroll, new LinearLayout.LayoutParams(-1, ResUtil.dp2px(360)));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .setNegativeButton("关闭", null)
+                .create();
+        for (int i = 0; i < rows.getChildCount(); i++) rows.getChildAt(i).setTag(dialog);
+        dialog.setOnShowListener(ignored -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+                dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.88f), -2);
+            }
+        });
+        dialog.show();
+    }
+
+    private void startDownloadEpisode(Episode episode) {
+        mVod.resolveDownload(episode, resolved -> {
+            String url = episode.getUrl();
+            java.util.Map<String, String> headers = java.util.Collections.emptyMap();
+            if (resolved != null) {
+                PlaySpec spec = PlaySpec.from(resolved, getHistoryKey(), null);
+                url = spec.getUri().toString();
+                headers = spec.getHeaders();
+            }
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                Notify.show("该集下载地址解析失败，请更换线路或稍后重试");
+                return;
+            }
+            VideoTaskItem task = new VideoTaskItem(url, getPic(), getName() + " " + episode.getName(), getName());
+            VideoDownloadManager.getInstance().startDownload(task, headers);
+            Notify.show("已加入下载队列：" + episode.getName());
+        });
     }
 
     @Override

@@ -1,6 +1,9 @@
 package com.fongmi.android.tv.ui.activity;
 
 import android.app.Activity;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -8,7 +11,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.Button;
+import android.widget.AbsListView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -19,7 +22,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
-import com.fongmi.android.tv.ui.activity.VideoActivity;
 import com.fongmi.android.tv.utils.Notify;
 import com.jeffmony.downloader.VideoDownloadManager;
 import com.jeffmony.downloader.listener.DownloadListener;
@@ -33,6 +35,12 @@ import java.util.List;
 import java.util.Map;
 
 public class DownloadActivity extends AppCompatActivity {
+
+    private static final int BG = 0xFF141218;
+    private static final int CARD = 0xFF24212B;
+    private static final int ACCENT = 0xFFFF7043;
+    private static final int TEXT = 0xFFFFFFFF;
+    private static final int MUTED = 0xFFB8B3C0;
 
     private final List<VideoTaskItem> items = new ArrayList<>();
     private final List<DownloadGroup> groups = new ArrayList<>();
@@ -51,29 +59,55 @@ public class DownloadActivity extends AppCompatActivity {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(16, 16, 16, 16);
-        root.setBackgroundColor(0xFF171717);
+        root.setPadding(dp(16), dp(12), dp(16), dp(12));
+        root.setBackgroundColor(BG);
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        Button back = new Button(this);
-        back.setText("返回");
+        TextView back = new TextView(this);
+        back.setText("‹");
+        back.setTextSize(34);
+        back.setTextColor(TEXT);
+        back.setGravity(Gravity.CENTER);
+        back.setBackground(round(0xFF292530, dp(12)));
+        header.addView(back, new LinearLayout.LayoutParams(dp(44), dp(44)));
         back.setOnClickListener(v -> showGroups());
-        header.addView(back, new LinearLayout.LayoutParams(-2, -2));
-        title = new TextView(this);
-        title.setText("下载列表");
-        title.setTextSize(21);
-        title.setTextColor(0xFFFFFFFF);
-        title.setPadding(12, 0, 0, 0);
-        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
-        Button pauseAll = new Button(this);
-        pauseAll.setText("暂停全部下载");
+        title = new TextView(this);
+        title.setText("下载管理");
+        title.setTextSize(21);
+        title.setTextColor(TEXT);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(dp(14), 0, 0, 0);
+        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        root.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
+
+        TextView hint = new TextView(this);
+        hint.setText("已下载的视频和正在下载的任务");
+        hint.setTextSize(13);
+        hint.setTextColor(MUTED);
+        hint.setPadding(dp(58), 0, 0, dp(14));
+        root.addView(hint);
+
+        TextView pauseAll = new TextView(this);
+        pauseAll.setText("暂停全部任务");
+        pauseAll.setTextSize(13);
+        pauseAll.setTextColor(TEXT);
+        pauseAll.setGravity(Gravity.CENTER);
+        pauseAll.setPadding(dp(16), 0, dp(16), 0);
+        pauseAll.setBackground(round(0xFF393440, dp(18)));
+        LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(-2, dp(38));
+        pauseParams.bottomMargin = dp(12);
+        root.addView(pauseAll, pauseParams);
         pauseAll.setOnClickListener(v -> VideoDownloadManager.getInstance().pauseAllDownloadTasks());
-        root.addView(pauseAll, new LinearLayout.LayoutParams(-1, -2));
 
         list = new ListView(this);
+        list.setCacheColorHint(Color.TRANSPARENT);
+        list.setDivider(new ColorDrawable(Color.TRANSPARENT));
+        list.setDividerHeight(dp(9));
+        list.setSelector(new ColorDrawable(Color.TRANSPARENT));
+        list.setPadding(0, dp(2), 0, dp(8));
+        list.setClipToPadding(false);
         adapter = new TaskAdapter();
         list.setAdapter(adapter);
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -100,12 +134,20 @@ public class DownloadActivity extends AppCompatActivity {
         VideoDownloadManager.getInstance().fetchDownloadItems(infosCallback);
     }
 
+    private int dp(float value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private GradientDrawable round(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(radius);
+        return drawable;
+    }
+
     private void onEpisodeClick(VideoTaskItem task) {
-        if (task.isSuccessState()) {
-            play(task);
-        } else {
-            toggle(task);
-        }
+        if (task.isSuccessState()) play(task);
+        else toggle(task);
     }
 
     private void play(VideoTaskItem task) {
@@ -119,7 +161,9 @@ public class DownloadActivity extends AppCompatActivity {
             Notify.show("下载文件不存在或不完整，请删除后重新下载");
             return;
         }
-        VideoActivity.file(this, Uri.fromFile(file));
+        String displayName = task.getGroupName();
+        if (TextUtils.isEmpty(displayName)) displayName = task.getTitle();
+        VideoActivity.file(this, Uri.fromFile(file), displayName, task.getCoverUrl());
     }
 
     private void openGroup(DownloadGroup group) {
@@ -136,7 +180,7 @@ public class DownloadActivity extends AppCompatActivity {
         }
         showingEpisodes = false;
         currentGroup = null;
-        title.setText("下载列表");
+        title.setText("下载管理");
         adapter.notifyDataSetChanged();
     }
 
@@ -202,7 +246,7 @@ public class DownloadActivity extends AppCompatActivity {
             }
             if (currentGroup == null) {
                 showingEpisodes = false;
-                title.setText("下载列表");
+                title.setText("下载管理");
             }
         }
         adapter.notifyDataSetChanged();
@@ -251,29 +295,36 @@ public class DownloadActivity extends AppCompatActivity {
             if (convertView == null) {
                 LinearLayout line = new LinearLayout(DownloadActivity.this);
                 line.setGravity(Gravity.CENTER_VERTICAL);
-                line.setPadding(8, 12, 8, 12);
+                line.setPadding(dp(12), dp(12), dp(12), dp(12));
+                line.setBackground(round(CARD, dp(16)));
                 ImageView cover = new ImageView(DownloadActivity.this);
                 cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                line.addView(cover, new LinearLayout.LayoutParams(104, 72));
+                line.addView(cover, new LinearLayout.LayoutParams(dp(96), dp(72)));
                 LinearLayout texts = new LinearLayout(DownloadActivity.this);
                 texts.setOrientation(LinearLayout.VERTICAL);
-                texts.setPadding(12, 0, 0, 0);
+                texts.setPadding(dp(14), 0, 0, 0);
                 line.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
                 TextView name = new TextView(DownloadActivity.this);
-                name.setTextColor(0xFFFFFFFF);
+                name.setTextColor(TEXT);
                 name.setTextSize(16);
+                name.setMaxLines(1);
+                name.setEllipsize(TextUtils.TruncateAt.END);
+                name.setTypeface(null, android.graphics.Typeface.BOLD);
                 TextView state = new TextView(DownloadActivity.this);
-                state.setTextColor(0xFFBBBBBB);
+                state.setTextColor(MUTED);
                 state.setTextSize(13);
+                state.setPadding(0, dp(5), 0, 0);
                 TextView progress = new TextView(DownloadActivity.this);
-                progress.setTextColor(0xFFBBBBBB);
-                progress.setTextSize(13);
+                progress.setTextColor(0xFF9993A1);
+                progress.setTextSize(12);
+                progress.setPadding(0, dp(3), 0, 0);
                 texts.addView(name);
                 texts.addView(state);
                 texts.addView(progress);
                 row = new Row(cover, name, state, progress);
                 line.setTag(row);
                 convertView = line;
+                convertView.setLayoutParams(new AbsListView.LayoutParams(-1, -2));
             } else {
                 row = (Row) convertView.getTag();
             }
@@ -282,38 +333,42 @@ public class DownloadActivity extends AppCompatActivity {
                 VideoTaskItem task = currentGroup.items.get(position);
                 row.name.setText(episodeName(task));
                 row.state.setText(state(task));
-                row.progress.setText(task.getPercentString() + "  " + task.getDownloadSizeString());
-                Glide.with(DownloadActivity.this).load(task.getCoverUrl()).into(row.cover);
+                row.state.setTextColor(task.isSuccessState() ? 0xFF72D69B : task.isErrorState() ? 0xFFFF8A80 : MUTED);
+                row.progress.setText(task.getPercentString() + "  ·  " + task.getDownloadSizeString());
+                Glide.with(DownloadActivity.this).load(task.getCoverUrl()).centerCrop().into(row.cover);
             } else {
                 DownloadGroup group = groups.get(position);
                 int completed = 0;
-                for (VideoTaskItem task : group.items) if (task.isSuccessState()) completed++;
+                int running = 0;
+                for (VideoTaskItem task : group.items) {
+                    if (task.isSuccessState()) completed++;
+                    if (task.isRunningTask() || task.isPendingTask()) running++;
+                }
                 row.name.setText(group.name);
-                row.state.setText(completed == group.items.size()
-                        ? "已全部下载完成"
-                        : "已完成 " + completed + " / " + group.items.size() + " 集");
-                row.progress.setText("点击查看已下载和下载中的集数");
-                Glide.with(DownloadActivity.this).load(group.coverUrl).into(row.cover);
+                row.state.setText(completed == group.items.size() ? "全部下载完成" : "已下载 " + completed + " / " + group.items.size() + " 集");
+                row.state.setTextColor(completed == group.items.size() ? 0xFF72D69B : MUTED);
+                row.progress.setText(running > 0 ? running + " 个任务正在下载  ·  点击查看详情" : "点击查看下载详情");
+                Glide.with(DownloadActivity.this).load(group.coverUrl).centerCrop().into(row.cover);
             }
             return convertView;
         }
     }
 
     private String episodeName(VideoTaskItem item) {
-        String title = item.getTitle();
+        String value = item.getTitle();
         String group = item.getGroupName();
-        if (!TextUtils.isEmpty(title) && !TextUtils.isEmpty(group) && title.startsWith(group)) {
-            title = title.substring(group.length()).trim();
+        if (!TextUtils.isEmpty(value) && !TextUtils.isEmpty(group) && value.startsWith(group)) {
+            value = value.substring(group.length()).trim();
         }
-        if (TextUtils.isEmpty(title)) title = item.getFileName();
-        return TextUtils.isEmpty(title) ? "未知集数" : title;
+        if (TextUtils.isEmpty(value)) value = item.getFileName();
+        return TextUtils.isEmpty(value) ? "未知集数" : value;
     }
 
     private String state(VideoTaskItem item) {
         if (item.isSuccessState()) return "已完成 · 点击播放";
         if (item.isErrorState()) return "下载失败 · 点击重试";
-        if (item.isRunningTask()) return "下载中 · 点击暂停";
-        if (item.isPendingTask()) return "排队中 · 点击暂停";
+        if (item.isRunningTask()) return "正在下载 · 点击暂停";
+        if (item.isPendingTask()) return "等待下载 · 点击暂停";
         return "已暂停 · 点击继续";
     }
 
