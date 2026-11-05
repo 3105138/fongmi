@@ -19,6 +19,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -28,6 +30,7 @@ import com.google.android.material.color.MaterialColors;
 
 import com.bumptech.glide.Glide;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.ui.custom.CustomWallView;
 import com.fongmi.android.tv.utils.Notify;
 import com.jeffmony.downloader.VideoDownloadManager;
 import com.jeffmony.downloader.listener.DownloadListener;
@@ -68,6 +71,12 @@ public class DownloadActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
+        // Match BaseActivity: draw the same wallpaper and transparent system bars as HomeActivity.
+        EdgeToEdge.enable(this, SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT));
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
         // Match BaseActivity: apply the user's selected dynamic palette before the
         // Activity resolves its Material 3 theme attributes.
         int dynamicColor = Setting.getDynamicColor();
@@ -86,7 +95,7 @@ public class DownloadActivity extends AppCompatActivity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(12));
-        root.setBackgroundColor(surfaceColor);
+        root.setBackgroundColor(Color.TRANSPARENT);
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -118,7 +127,7 @@ public class DownloadActivity extends AppCompatActivity {
         root.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
 
         list = new ListView(this);
-        list.setBackgroundColor(surfaceColor);
+        list.setBackgroundColor(Color.TRANSPARENT);
         list.setCacheColorHint(Color.TRANSPARENT);
         list.setDivider(new ColorDrawable(Color.TRANSPARENT));
         list.setDividerHeight(dp(9));
@@ -146,6 +155,10 @@ public class DownloadActivity extends AppCompatActivity {
         });
 
         setContentView(root);
+        // BaseActivity inserts CustomWallView behind the page content. Do the same here.
+        ((ViewGroup) findViewById(android.R.id.content)).addView(
+                new CustomWallView(this, null), 0,
+                new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         VideoDownloadManager.getInstance().setGlobalDownloadListener(listener);
         VideoDownloadManager.getInstance().fetchDownloadItems(infosCallback);
     }
