@@ -48,7 +48,7 @@ public class DownloadActivity extends AppCompatActivity {
   @Override public void onDownloadSuccess(VideoTaskItem i){update(i);}
  };
  private final IDownloadInfosCallback infosCallback=infos->runOnUiThread(()->{items.clear();items.addAll(infos);adapter.notifyDataSetChanged();});
- @Override protected void onDestroy(){VideoDownloadManager.getInstance().removeDownloadInfosCallback(infosCallback);super.onDestroy();}
+ @Override protected void onDestroy(){VideoDownloadManager.getInstance().removeDownloadInfosCallback(infosCallback);VideoDownloadManager.getInstance().setGlobalDownloadListener(new DownloadListener());super.onDestroy();}
  private class TaskAdapter extends BaseAdapter{
   @Override public int getCount(){return items.size();}@Override public Object getItem(int p){return items.get(p);}@Override public long getItemId(int p){return p;}
   @Override public View getView(int p,View cv,ViewGroup parent){Row row;if(cv==null){LinearLayout line=new LinearLayout(DownloadActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(8,12,8,12);
