@@ -20,6 +20,7 @@ import androidx.media3.mpvplayer.MpvLibrary;
 import com.fongmi.android.tv.player.mpv.MpvUtil;
 import com.jeffmony.downloader.VideoDownloadConfig;
 import com.jeffmony.downloader.VideoDownloadManager;
+import com.jeffmony.downloader.listener.DownloadListener;
 import com.jeffmony.downloader.utils.VideoStorageUtils;
 
 import java.io.File;
@@ -108,6 +109,9 @@ public class App extends Application implements Application.ActivityLifecycleCal
     }
 
     private void initDownloads() {
+        // The SDK dispatches state messages immediately after startDownload().
+        // Always install a listener before any download can be queued.
+        VideoDownloadManager.getInstance().setGlobalDownloadListener(new DownloadListener());
         File directory = VideoStorageUtils.getVideoCacheDir(this);
         if (!directory.exists()) directory.mkdirs();
         VideoDownloadConfig config = new VideoDownloadManager.Build(this)
