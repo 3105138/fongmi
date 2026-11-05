@@ -142,8 +142,13 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     public static void file(FragmentActivity activity, Uri fileUri) {
+        file(activity, fileUri, null, null);
+    }
+
+    public static void file(FragmentActivity activity, Uri fileUri, String name, String pic) {
         if (fileUri == null || activity.isFinishing() || activity.isDestroyed()) return;
-        start(activity, SiteApi.LOCAL, fileUri.toString(), FileUtil.getDisplayName(fileUri));
+        String displayName = android.text.TextUtils.isEmpty(name) ? FileUtil.getDisplayName(fileUri) : name;
+        start(activity, SiteApi.LOCAL, fileUri.toString(), displayName, pic);
     }
 
     public static void cast(Activity activity, History history) {

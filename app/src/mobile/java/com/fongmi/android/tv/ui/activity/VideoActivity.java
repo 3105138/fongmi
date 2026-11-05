@@ -885,6 +885,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         view.setText(substring(sb.toString(), 2));
     }
 
+    private void onDownload() {
+        List<Episode> episodes = mEpisodeAdapter.getItems();
+        if (episodes == null || episodes.isEmpty()) {
+            Notify.show("暂无可下载集数");
+            return;
+        }
+        showDownloadEpisodeDialog(episodes);
+    }
+
     private void showDownloadEpisodeDialog(List<Episode> episodes) {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
