@@ -916,7 +916,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
         TextView downloadList = new TextView(this);
         downloadList.setText("下载列表  ›");
-        downloadList.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFFFF8A65));
+        downloadList.setTextColor(MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, 0xFFFF8A65));
         downloadList.setTextSize(14);
         downloadList.setPadding(ResUtil.dp2px(10), ResUtil.dp2px(8), 0, ResUtil.dp2px(8));
         header.addView(downloadList);
@@ -949,7 +949,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         next.setText("下一页 ›");
         for (TextView control : new TextView[]{previous, next}) {
             control.setTextSize(13);
-            control.setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorPrimary, 0xFFFF8A65));
+            control.setTextColor(MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, 0xFFFF8A65));
             control.setPadding(ResUtil.dp2px(18), ResUtil.dp2px(12), ResUtil.dp2px(18), ResUtil.dp2px(8));
             pages.addView(control);
         }
