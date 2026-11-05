@@ -21,6 +21,8 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.SystemBarStyle;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -96,6 +98,11 @@ public class DownloadActivity extends AppCompatActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(12));
         root.setBackgroundColor(Color.TRANSPARENT);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            int top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            root.setPadding(dp(16), dp(12) + top, dp(16), dp(12));
+            return insets;
+        });
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -159,6 +166,7 @@ public class DownloadActivity extends AppCompatActivity {
         ((ViewGroup) findViewById(android.R.id.content)).addView(
                 new CustomWallView(this, null), 0,
                 new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        ViewCompat.requestApplyInsets(root);
         VideoDownloadManager.getInstance().setGlobalDownloadListener(listener);
         VideoDownloadManager.getInstance().fetchDownloadItems(infosCallback);
     }
@@ -191,7 +199,56 @@ public class DownloadActivity extends AppCompatActivity {
             return;
         }
         String displayName = episodeName(task);
-        VideoActivity.file(this, Uri.fromFile(file), displayName, task.getCoverUrl());
+        openDownloadedSeries(task);
+    }
+
+
+    private void openDownloadedSeries(VideoTaskItem selected) {
+        String groupName = selected.getGroupName();
+        if (TextUtils.isEmpty(groupName)) groupName = episodeName(selected);
+        List<VideoTaskItem> completed = new ArrayList<>();
+        for (VideoTaskItem item : items) {
+            if (item.isSuccessState() && TextUtils.equals(groupName, item.getGroupName())
+                    && !TextUtils.isEmpty(item.getFilePath())) {
+                File local = new File(item.getFilePath());
+                if (local.isFile() && local.canRead() && local.length() > 0) completed.add(item);
+            }
+        }
+        completed.sort((a, b) -> {
+            int na = episodeNumber(a);
+            int nb = episodeNumber(b);
+            if (na >= 0 && nb >= 0) return Integer.compare(na, nb);
+            return episodeName(a).compareToIgnoreCase(episodeName(b));
+        });
+        ArrayList<String> names = new ArrayList<>();
+        ArrayList<String> paths = new ArrayList<>();
+        int selectedIndex = 0;
+        for (int i = 0; i < completed.size(); i++) {
+            VideoTaskItem item = completed.get(i);
+            names.add(episodeLabel(item));
+            paths.add(item.getFilePath());
+            if (TextUtils.equals(item.getUrl(), selected.getUrl())) selectedIndex = i;
+        }
+        if (paths.isEmpty()) {
+            Notify.show("没有找到已完成的本地剧集");
+            return;
+        }
+        VideoActivity.localPlaylist(this, groupName, selected.getCoverUrl(), names, paths, selectedIndex);
+    }
+
+    private int episodeNumber(VideoTaskItem item) {
+        String value = item.getTitle();
+        if (TextUtils.isEmpty(value)) value = item.getFileName();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+)").matcher(value == null ? "" : value);
+        return matcher.find() ? Integer.parseInt(matcher.group(1)) : -1;
+    }
+
+    private String episodeLabel(VideoTaskItem item) {
+        String value = item.getTitle();
+        String group = item.getGroupName();
+        if (!TextUtils.isEmpty(value) && !TextUtils.isEmpty(group) && value.startsWith(group)) value = value.substring(group.length()).trim();
+        if (TextUtils.isEmpty(value)) value = item.getFileName();
+        return TextUtils.isEmpty(value) ? "未知集数" : value;
     }
 
     private void showGroups() {
