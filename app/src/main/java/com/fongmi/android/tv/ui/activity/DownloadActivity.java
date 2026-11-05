@@ -36,7 +36,6 @@ public class DownloadActivity extends AppCompatActivity {
 
     private final List<VideoTaskItem> items = new ArrayList<>();
     private final List<DownloadGroup> groups = new ArrayList<>();
-    private final List<?> visibleItems = new ArrayList<>();
     private TaskAdapter adapter;
     private ListView list;
     private TextView title;
@@ -177,6 +176,7 @@ public class DownloadActivity extends AppCompatActivity {
     }
 
     private void rebuildGroups() {
+        String currentName = showingEpisodes && currentGroup != null ? currentGroup.name : null;
         Map<String, DownloadGroup> grouped = new LinkedHashMap<>();
         for (VideoTaskItem item : items) {
             String groupName = item.getGroupName();
@@ -192,6 +192,19 @@ public class DownloadActivity extends AppCompatActivity {
         }
         groups.clear();
         groups.addAll(grouped.values());
+        if (currentName != null) {
+            currentGroup = null;
+            for (DownloadGroup group : groups) {
+                if (TextUtils.equals(group.name, currentName)) {
+                    currentGroup = group;
+                    break;
+                }
+            }
+            if (currentGroup == null) {
+                showingEpisodes = false;
+                title.setText("下载列表");
+            }
+        }
         adapter.notifyDataSetChanged();
     }
 
