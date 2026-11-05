@@ -256,6 +256,7 @@
                     android:id="@+id/download_detail"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
+                    android:visibility="gone"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="下载"
                     android:focusable="true"
