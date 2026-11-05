@@ -177,8 +177,7 @@ public class DownloadActivity extends AppCompatActivity {
             Notify.show("下载文件不存在或不完整，请删除后重新下载");
             return;
         }
-        String displayName = task.getGroupName();
-        if (TextUtils.isEmpty(displayName)) displayName = task.getTitle();
+        String displayName = episodeName(task);
         VideoActivity.file(this, Uri.fromFile(file), displayName, task.getCoverUrl());
     }
 
@@ -386,7 +385,8 @@ public class DownloadActivity extends AppCompatActivity {
             value = value.substring(group.length()).trim();
         }
         if (TextUtils.isEmpty(value)) value = item.getFileName();
-        return TextUtils.isEmpty(value) ? "未知集数" : value;
+        if (TextUtils.isEmpty(value)) value = "未知集数";
+        return TextUtils.isEmpty(group) ? value : group + "  " + value;
     }
 
     private String state(VideoTaskItem item) {
