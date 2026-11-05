@@ -128,6 +128,7 @@ import com.github.catvod.utils.UriUtil;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -173,6 +174,20 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         if (fileUri == null || activity.isFinishing() || activity.isDestroyed()) return;
         String displayName = TextUtils.isEmpty(name) ? FileUtil.getDisplayName(fileUri) : name;
         start(activity, SiteApi.LOCAL, fileUri.toString(), displayName, pic);
+    }
+
+
+    public static void localPlaylist(Activity activity, String name, String pic, ArrayList<String> episodeNames, ArrayList<String> paths, int selectedIndex) {
+        if (activity == null || episodeNames == null || paths == null || paths.isEmpty() || episodeNames.size() != paths.size()) return;
+        Intent intent = new Intent(activity, VideoActivity.class);
+        intent.putExtra("key", SiteApi.LOCAL);
+        intent.putExtra("id", "download:" + name);
+        intent.putExtra("name", name);
+        putPic(intent, pic);
+        intent.putStringArrayListExtra("local_playlist_names", episodeNames);
+        intent.putStringArrayListExtra("local_playlist_paths", paths);
+        intent.putExtra("local_playlist_selected", Math.max(0, Math.min(selectedIndex, paths.size() - 1)));
+        activity.startActivity(intent);
     }
 
     public static void cast(Activity activity, History history) {
@@ -343,7 +358,35 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         showProgress();
         setAnimator();
         renderFallbackName(getName());
-        checkId();
+        if (getIntent().hasExtra("local_playlist_paths")) loadLocalPlaylist();
+        else checkId();
+    }
+
+    private void loadLocalPlaylist() {
+        ArrayList<String> names = getIntent().getStringArrayListExtra("local_playlist_names");
+        ArrayList<String> paths = getIntent().getStringArrayListExtra("local_playlist_paths");
+        if (names == null || paths == null || names.isEmpty() || names.size() != paths.size()) {
+            showEmpty();
+            return;
+        }
+        Vod vod = new Vod();
+        vod.setId(getId());
+        vod.setName(getName());
+        vod.setPic(getPic());
+        Flag flag = Flag.create("本地下载");
+        for (int i = 0; i < paths.size(); i++) {
+            String path = paths.get(i);
+            if (TextUtils.isEmpty(path)) continue;
+            flag.getEpisodes().add(Episode.create(names.get(i), Uri.fromFile(new java.io.File(path)).toString()));
+        }
+        if (flag.getEpisodes().isEmpty()) {
+            showEmpty();
+            return;
+        }
+        int selected = Math.max(0, Math.min(getIntent().getIntExtra("local_playlist_selected", 0), flag.getEpisodes().size() - 1));
+        flag.toggle(true, flag.getEpisodes().get(selected));
+        vod.getFlags().add(flag);
+        mVod.loadLocalPlaylist(vod);
     }
 
     @Override
