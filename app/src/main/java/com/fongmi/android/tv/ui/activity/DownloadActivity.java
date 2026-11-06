@@ -288,8 +288,18 @@ public class DownloadActivity extends AppCompatActivity {
     }
 
     private void toggleBatchMode() {
-        if (multiSelect) exitBatchMode();
-        else { deletingUrl = null; multiSelect = true; selectedUrls.clear(); batchBar.setVisibility(View.VISIBLE); updateBatchCount(); adapter.notifyDataSetChanged(); }
+        if (multiSelect) {
+            exitBatchMode();
+            return;
+        }
+        // An empty download list has nothing to select; leave the screen unchanged.
+        if (items.isEmpty() || currentGroup == null || currentGroup.items.isEmpty()) return;
+        deletingUrl = null;
+        multiSelect = true;
+        selectedUrls.clear();
+        batchBar.setVisibility(View.VISIBLE);
+        updateBatchCount();
+        adapter.notifyDataSetChanged();
     }
     private void exitBatchMode() { multiSelect = false; selectedUrls.clear(); batchBar.setVisibility(View.GONE); adapter.notifyDataSetChanged(); }
     private void toggleSelected(VideoTaskItem item) {
