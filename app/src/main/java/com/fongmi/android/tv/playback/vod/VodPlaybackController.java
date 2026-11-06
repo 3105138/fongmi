@@ -40,6 +40,8 @@ public class VodPlaybackController {
     private boolean manualEndingTriggered;
     private VodPlayRequest downloadRequest;
     private java.util.function.Consumer<Result> downloadCallback;
+    private Vod pendingLocalPlaylist;
+    private boolean playbackServiceReady;
 
     public VodPlaybackController(VodPlaybackHost host, VodDataSource dataSource, VodPlaybackState state) {
         this.host = host;
@@ -51,6 +53,7 @@ public class VodPlaybackController {
     }
 
     public void reset() {
+        pendingLocalPlaylist = null;
         finishDownloadResolution(null);
         dataSource.cancelContent();
         preloader.clear();
@@ -64,7 +67,12 @@ public class VodPlaybackController {
     }
 
     public void loadLocalPlaylist(Vod item) {
-        if (item != null) detailLoaded(item);
+        if (item == null) return;
+        if (!playbackServiceReady) {
+            pendingLocalPlaylist = item;
+            return;
+        }
+        detailLoadedLocal(item);
     }
 
     public void checkId() {
@@ -468,6 +476,13 @@ public class VodPlaybackController {
     }
 
     public void onPlaybackServiceReady() {
+        playbackServiceReady = true;
+        if (pendingLocalPlaylist != null) {
+            Vod item = pendingLocalPlaylist;
+            pendingLocalPlaylist = null;
+            detailLoadedLocal(item);
+            return;
+        }
         MediaMetadata metadata = state.getPlaybackMetadata();
         if (metadata != null) host.renderPlaybackMetadata(metadata);
         VodPlayRequest request = state.getPlayingRequest();
@@ -653,12 +668,29 @@ public class VodPlaybackController {
 
     private void detailLoaded(Vod item) {
         VodPlayRequest activeRequest = state.getActiveRequest();
-        History history = applyDetail(item);
+        History history = applyDetail(item, true);
         if (state.hasFlags()) restoreDetail(activeRequest, history);
         else fallbackPolicy.emptyFlag();
     }
 
-    private History applyDetail(Vod item) {
+    private void detailLoadedLocal(Vod item) {
+        History history = applyDetail(item, false);
+        if (!state.hasFlags()) {
+            fallbackPolicy.emptyFlag();
+            return;
+        }
+        Flag flag = state.getFlags().get(0);
+        int position = flag.getPosition();
+        if (position < 0 || position >= flag.getEpisodes().size()) position = 0;
+        Episode episode = flag.getEpisodes().get(position);
+        for (Flag current : state.getFlags()) current.toggle(current == flag, episode);
+        bindFlag(flag);
+        historyPolicy.updateEpisode(history, flag, episode);
+        host.renderEpisodeSelection(episode);
+        requestPlayer(flag, episode, 0);
+    }
+
+    private History applyDetail(Vod item, boolean restoreSaved) {
         item.checkPic(host.getVodPic());
         item.checkName(host.getVodName());
         List<Flag> flags = item.getFlags();
@@ -666,7 +698,7 @@ public class VodPlaybackController {
         state.setFlags(flags);
         History history = historyPolicy.findOrCreate(host.getHistoryKey(), host.getVodMark(), item);
         state.setHistory(history);
-        restoreSavedEpisode(history);
+        if (restoreSaved) restoreSavedEpisode(history);
         lastHistory = history;
         host.renderDetail(item, history);
         host.renderFlags(flags);
