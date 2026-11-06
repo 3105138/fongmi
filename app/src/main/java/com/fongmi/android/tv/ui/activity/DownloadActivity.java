@@ -68,6 +68,10 @@ public class DownloadActivity extends AppCompatActivity {
     private boolean showingEpisodes = true;
     private DownloadGroup currentGroup;
     private String deletingUrl;
+    private boolean multiSelect;
+    private final Set<String> selectedUrls = new HashSet<>();
+    private LinearLayout batchBar;
+    private TextView confirmBatch;
 
     public static void start(Activity activity) {
         activity.startActivity(new android.content.Intent(activity, DownloadActivity.class));
@@ -133,7 +137,7 @@ public class DownloadActivity extends AppCompatActivity {
         deleteAll.setContentDescription("清空下载列表");
         deleteAll.setBackgroundColor(Color.TRANSPARENT);
         header.addView(deleteAll, new LinearLayout.LayoutParams(dp(42), dp(42)));
-        deleteAll.setOnClickListener(v -> deleteAll());
+        deleteAll.setOnClickListener(v -> toggleBatchMode());
         root.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
 
         list = new ListView(this);
@@ -147,11 +151,25 @@ public class DownloadActivity extends AppCompatActivity {
         adapter = new TaskAdapter();
         list.setAdapter(adapter);
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
+        batchBar = new LinearLayout(this);
+        batchBar.setGravity(Gravity.CENTER_VERTICAL);
+        batchBar.setPadding(dp(4), dp(8), dp(4), dp(4));
+        batchBar.setVisibility(View.GONE);
+        TextView cancelBatch = new TextView(this);
+        cancelBatch.setText("取消"); cancelBatch.setTextColor(buttonTextColor); cancelBatch.setTextSize(16); cancelBatch.setGravity(Gravity.CENTER); cancelBatch.setBackground(round(buttonColor, dp(12)));
+        batchBar.addView(cancelBatch, new LinearLayout.LayoutParams(0, dp(46), 1));
+        confirmBatch = new TextView(this);
+        confirmBatch.setText("确定 (0)"); confirmBatch.setTextColor(Color.WHITE); confirmBatch.setTextSize(16); confirmBatch.setGravity(Gravity.CENTER); confirmBatch.setBackground(round(primaryColor, dp(12)));
+        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(0, dp(46), 1); confirmParams.leftMargin = dp(12);
+        batchBar.addView(confirmBatch, confirmParams);
+        root.addView(batchBar, new LinearLayout.LayoutParams(-1, dp(62)));
+        cancelBatch.setOnClickListener(v -> exitBatchMode()); confirmBatch.setOnClickListener(v -> deleteSelected());
         list.setOnItemClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
             if (!(item instanceof VideoTaskItem task)) return;
+            if (multiSelect) { toggleSelected(task); return; }
             if (!TextUtils.isEmpty(deletingUrl)) {
-                if (TextUtils.equals(deletingUrl, task.getUrl())) confirmDeleteTask(task);
+                if (TextUtils.equals(deletingUrl, task.getUrl())) return;
                 else {
                     deletingUrl = null;
                     adapter.notifyDataSetChanged();
@@ -162,6 +180,7 @@ public class DownloadActivity extends AppCompatActivity {
         list.setOnItemLongClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
             if (!(item instanceof VideoTaskItem task)) return false;
+            if (multiSelect) return true;
             deletingUrl = TextUtils.equals(deletingUrl, task.getUrl()) ? null : task.getUrl();
             adapter.notifyDataSetChanged();
             return true;
@@ -263,37 +282,28 @@ public class DownloadActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (!TextUtils.isEmpty(deletingUrl)) {
-            deletingUrl = null;
-            adapter.notifyDataSetChanged();
-        } else finish();
+        if (multiSelect) exitBatchMode();
+        else if (!TextUtils.isEmpty(deletingUrl)) { deletingUrl = null; adapter.notifyDataSetChanged(); }
+        else finish();
     }
 
-    private void confirmDeleteTask(VideoTaskItem task) {
-        new AlertDialog.Builder(this)
-                .setTitle("删除下载任务")
-                .setMessage("是否同时删除已下载的本地文件？")
-                .setNegativeButton("取消", (dialog, which) -> {
-                    deletingUrl = null;
-                    adapter.notifyDataSetChanged();
-                })
-                .setNeutralButton("仅删除记录", (dialog, which) -> delete(task, false))
-                .setPositiveButton("删除文件和记录", (dialog, which) -> delete(task, true))
-                .show();
+    private void toggleBatchMode() {
+        if (multiSelect) exitBatchMode();
+        else { deletingUrl = null; multiSelect = true; selectedUrls.clear(); batchBar.setVisibility(View.VISIBLE); updateBatchCount(); adapter.notifyDataSetChanged(); }
     }
-
-    private void deleteAll() {
-        if (items.isEmpty()) return;
-        new AlertDialog.Builder(this)
-                .setTitle("清空下载列表")
-                .setMessage("确定删除全部下载任务及其本地文件吗？")
-                .setNegativeButton("取消", null)
-                .setPositiveButton("删除", (dialog, which) -> {
-                    List<VideoTaskItem> copy = new ArrayList<>(items);
-                    for (VideoTaskItem item : copy) delete(item, true);
-                    Notify.show("下载列表已清空");
-                })
-                .show();
+    private void exitBatchMode() { multiSelect = false; selectedUrls.clear(); batchBar.setVisibility(View.GONE); adapter.notifyDataSetChanged(); }
+    private void toggleSelected(VideoTaskItem item) {
+        String url = item.getUrl(); if (TextUtils.isEmpty(url)) return;
+        if (!selectedUrls.add(url)) selectedUrls.remove(url);
+        updateBatchCount(); adapter.notifyDataSetChanged();
+    }
+    private void updateBatchCount() { if (confirmBatch != null) confirmBatch.setText("确定 (" + selectedUrls.size() + ")"); }
+    private void deleteSelected() {
+        if (selectedUrls.isEmpty()) { Notify.show("请先选择要删除的记录"); return; }
+        List<VideoTaskItem> copy = new ArrayList<>();
+        for (VideoTaskItem item : items) if (selectedUrls.contains(item.getUrl())) copy.add(item);
+        exitBatchMode(); for (VideoTaskItem item : copy) delete(item, true);
+        Notify.show("已删除 " + copy.size() + " 条下载记录及本地文件");
     }
 
     private void toggle(VideoTaskItem item) {
@@ -414,8 +424,9 @@ public class DownloadActivity extends AppCompatActivity {
                 line.setGravity(Gravity.CENTER_VERTICAL);
                 line.setPadding(dp(12), dp(12), dp(12), dp(12));
                 line.setBackground(round(cardColor, dp(16)));
-                ImageView cover = new ImageView(DownloadActivity.this);
-                cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                TextView selectDot = new TextView(DownloadActivity.this); selectDot.setGravity(Gravity.CENTER); selectDot.setTextSize(14);
+                LinearLayout.LayoutParams dotParams = new LinearLayout.LayoutParams(dp(24), dp(24)); dotParams.rightMargin = dp(10); line.addView(selectDot, dotParams);
+                ImageView cover = new ImageView(DownloadActivity.this); cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 line.addView(cover, new LinearLayout.LayoutParams(dp(96), dp(72)));
                 LinearLayout texts = new LinearLayout(DownloadActivity.this);
                 texts.setOrientation(LinearLayout.VERTICAL);
@@ -454,7 +465,7 @@ public class DownloadActivity extends AppCompatActivity {
                 deleteOverlay.setVisibility(View.GONE);
                 card.addView(line, new FrameLayout.LayoutParams(-1, -2));
                 card.addView(deleteOverlay, new FrameLayout.LayoutParams(-1, -1));
-                row = new Row(cover, name, state, progress, bar, deleteOverlay, deleteIcon);
+                row = new Row(cover, name, state, progress, bar, deleteOverlay, deleteIcon, selectDot);
                 card.setTag(row);
                 convertView = card;
                 convertView.setLayoutParams(new AbsListView.LayoutParams(-1, -2));
@@ -465,19 +476,23 @@ public class DownloadActivity extends AppCompatActivity {
             if (showingEpisodes) {
                 VideoTaskItem task = currentGroup.items.get(position);
                 boolean deleting = TextUtils.equals(deletingUrl, task.getUrl());
+                boolean selected = selectedUrls.contains(task.getUrl()); row.selectDot.setVisibility(multiSelect ? View.VISIBLE : View.GONE); row.selectDot.setText(selected ? "✓" : ""); row.selectDot.setTextColor(Color.WHITE);
+                GradientDrawable dot = new GradientDrawable(); dot.setShape(GradientDrawable.OVAL);
+                if (selected) dot.setColor(primaryColor); else { dot.setColor(Color.TRANSPARENT); dot.setStroke(dp(1.5f), mutedColor); }
+                row.selectDot.setBackground(dot);
                 if (deleting) {
                     if (row.deleteOverlay.getVisibility() != View.VISIBLE) {
                         row.deleteOverlay.setAlpha(0f);
                         row.deleteIcon.setScaleX(0.65f);
                         row.deleteIcon.setScaleY(0.65f);
                     }
-                    row.deleteOverlay.setVisibility(View.VISIBLE);
+                    row.deleteOverlay.setVisibility(View.VISIBLE); row.deleteOverlay.setClickable(true); row.deleteOverlay.setOnClickListener(v -> { }); row.deleteIcon.setOnClickListener(v -> delete(task, true));
                     row.deleteOverlay.animate().alpha(1f).setDuration(180).start();
                     row.deleteIcon.animate().scaleX(1f).scaleY(1f).setDuration(220).start();
                 } else {
                     row.deleteOverlay.animate().cancel();
                     row.deleteIcon.animate().cancel();
-                    row.deleteOverlay.setVisibility(View.GONE);
+                    row.deleteOverlay.setVisibility(View.GONE); row.deleteOverlay.setClickable(false); row.deleteIcon.setOnClickListener(null);
                     row.deleteOverlay.setAlpha(1f);
                     row.deleteIcon.setScaleX(1f);
                     row.deleteIcon.setScaleY(1f);
@@ -489,7 +504,7 @@ public class DownloadActivity extends AppCompatActivity {
                 row.progress.setText(task.getSpeedString() + "  ·  " + task.getDownloadSizeString() + "  ·  " + task.getPercentString());
                 Glide.with(DownloadActivity.this).load(task.getCoverUrl()).centerCrop().into(row.cover);
             } else {
-                row.deleteOverlay.setVisibility(View.GONE);
+                row.deleteOverlay.setVisibility(View.GONE); row.selectDot.setVisibility(View.GONE);
                 DownloadGroup group = groups.get(position);
                 int completed = 0;
                 int running = 0;
@@ -544,14 +559,15 @@ public class DownloadActivity extends AppCompatActivity {
         final ProgressBar bar;
         final FrameLayout deleteOverlay;
         final ImageView deleteIcon;
-        Row(ImageView cover, TextView name, TextView state, TextView progress, ProgressBar bar, FrameLayout deleteOverlay, ImageView deleteIcon) {
+        final TextView selectDot;
+        Row(ImageView cover, TextView name, TextView state, TextView progress, ProgressBar bar, FrameLayout deleteOverlay, ImageView deleteIcon, TextView selectDot) {
             this.cover = cover;
             this.name = name;
             this.state = state;
             this.progress = progress;
             this.bar = bar;
             this.deleteOverlay = deleteOverlay;
-            this.deleteIcon = deleteIcon;
+            this.deleteIcon = deleteIcon; this.selectDot = selectDot;
         }
     }
 }
