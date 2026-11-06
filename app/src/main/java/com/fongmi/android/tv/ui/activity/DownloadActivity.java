@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.AbsListView;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -66,6 +67,7 @@ public class DownloadActivity extends AppCompatActivity {
     private TextView title;
     private boolean showingEpisodes = true;
     private DownloadGroup currentGroup;
+    private String deletingUrl;
 
     public static void start(Activity activity) {
         activity.startActivity(new android.content.Intent(activity, DownloadActivity.class));
@@ -123,12 +125,13 @@ public class DownloadActivity extends AppCompatActivity {
         title.setPadding(dp(14), 0, 0, 0);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView deleteAll = new TextView(this);
-        deleteAll.setText("⌫");
-        deleteAll.setTextSize(25);
-        deleteAll.setTextColor(textColor);
-        deleteAll.setGravity(Gravity.CENTER);
-        deleteAll.setBackground(round(buttonColor, dp(12)));
+        ImageView deleteAll = new ImageView(this);
+        deleteAll.setImageResource(com.fongmi.android.tv.R.drawable.ic_download_delete);
+        deleteAll.setColorFilter(textColor);
+        deleteAll.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        deleteAll.setPadding(dp(8), dp(8), dp(8), dp(8));
+        deleteAll.setContentDescription("清空下载列表");
+        deleteAll.setBackgroundColor(Color.TRANSPARENT);
         header.addView(deleteAll, new LinearLayout.LayoutParams(dp(42), dp(42)));
         deleteAll.setOnClickListener(v -> deleteAll());
         root.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
@@ -146,18 +149,21 @@ public class DownloadActivity extends AppCompatActivity {
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
         list.setOnItemClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
-            if (item instanceof VideoTaskItem task) onEpisodeClick(task);
+            if (!(item instanceof VideoTaskItem task)) return;
+            if (!TextUtils.isEmpty(deletingUrl)) {
+                if (TextUtils.equals(deletingUrl, task.getUrl())) confirmDeleteTask(task);
+                else {
+                    deletingUrl = null;
+                    adapter.notifyDataSetChanged();
+                    onEpisodeClick(task);
+                }
+            } else onEpisodeClick(task);
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
             Object item = adapter.getItem(position);
             if (!(item instanceof VideoTaskItem task)) return false;
-            new AlertDialog.Builder(this)
-                    .setTitle("删除下载任务")
-                    .setMessage("是否同时删除已下载的本地文件？")
-                    .setNegativeButton("取消", null)
-                    .setNeutralButton("仅删除记录", (dialog, which) -> delete(task, false))
-                    .setPositiveButton("删除文件和记录", (dialog, which) -> delete(task, true))
-                    .show();
+            deletingUrl = TextUtils.equals(deletingUrl, task.getUrl()) ? null : task.getUrl();
+            adapter.notifyDataSetChanged();
             return true;
         });
 
@@ -257,7 +263,23 @@ public class DownloadActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        finish();
+        if (!TextUtils.isEmpty(deletingUrl)) {
+            deletingUrl = null;
+            adapter.notifyDataSetChanged();
+        } else finish();
+    }
+
+    private void confirmDeleteTask(VideoTaskItem task) {
+        new AlertDialog.Builder(this)
+                .setTitle("删除下载任务")
+                .setMessage("是否同时删除已下载的本地文件？")
+                .setNegativeButton("取消", (dialog, which) -> {
+                    deletingUrl = null;
+                    adapter.notifyDataSetChanged();
+                })
+                .setNeutralButton("仅删除记录", (dialog, which) -> delete(task, false))
+                .setPositiveButton("删除文件和记录", (dialog, which) -> delete(task, true))
+                .show();
     }
 
     private void deleteAll() {
@@ -284,6 +306,7 @@ public class DownloadActivity extends AppCompatActivity {
 
     private void delete(VideoTaskItem item, boolean deleteFile) {
         String url = item.getUrl();
+        if (TextUtils.equals(deletingUrl, url)) deletingUrl = null;
         if (!TextUtils.isEmpty(url)) deletedUrls.add(url);
         // The SDK resets the item and emits onDownloadDefault after deleting it.
         // That callback must remove the row, never reinsert the now-empty item.
@@ -319,6 +342,7 @@ public class DownloadActivity extends AppCompatActivity {
 
     private void rebuildGroups() {
         groups.clear();
+        if (!containsUrl(deletingUrl)) deletingUrl = null;
         DownloadGroup all = new DownloadGroup("下载", items.isEmpty() ? "" : items.get(0).getCoverUrl());
         for (VideoTaskItem item : items) {
             if (!TextUtils.isEmpty(item.getUrl())) all.items.add(item);
@@ -328,6 +352,12 @@ public class DownloadActivity extends AppCompatActivity {
         showingEpisodes = true;
         if (title != null) title.setText("下载");
         if (adapter != null) adapter.notifyDataSetChanged();
+    }
+
+    private boolean containsUrl(String url) {
+        if (TextUtils.isEmpty(url)) return false;
+        for (VideoTaskItem item : items) if (TextUtils.equals(url, item.getUrl())) return true;
+        return false;
     }
 
     private final DownloadListener listener = new DownloadListener() {
@@ -379,6 +409,7 @@ public class DownloadActivity extends AppCompatActivity {
         public View getView(int position, View convertView, ViewGroup parent) {
             Row row;
             if (convertView == null) {
+                FrameLayout card = new FrameLayout(DownloadActivity.this);
                 LinearLayout line = new LinearLayout(DownloadActivity.this);
                 line.setGravity(Gravity.CENTER_VERTICAL);
                 line.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -414,9 +445,18 @@ public class DownloadActivity extends AppCompatActivity {
                 texts.addView(state);
                 texts.addView(bar, barParams);
                 texts.addView(progress);
-                row = new Row(cover, name, state, progress, bar);
-                line.setTag(row);
-                convertView = line;
+                FrameLayout deleteOverlay = new FrameLayout(DownloadActivity.this);
+                deleteOverlay.setBackground(round(Color.argb(155, 0, 0, 0), dp(16)));
+                ImageView deleteIcon = new ImageView(DownloadActivity.this);
+                deleteIcon.setImageResource(com.fongmi.android.tv.R.drawable.ic_download_delete);
+                deleteIcon.setColorFilter(Color.WHITE);
+                deleteOverlay.addView(deleteIcon, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER));
+                deleteOverlay.setVisibility(View.GONE);
+                card.addView(line, new FrameLayout.LayoutParams(-1, -2));
+                card.addView(deleteOverlay, new FrameLayout.LayoutParams(-1, -1));
+                row = new Row(cover, name, state, progress, bar, deleteOverlay, deleteIcon);
+                card.setTag(row);
+                convertView = card;
                 convertView.setLayoutParams(new AbsListView.LayoutParams(-1, -2));
             } else {
                 row = (Row) convertView.getTag();
@@ -424,6 +464,24 @@ public class DownloadActivity extends AppCompatActivity {
 
             if (showingEpisodes) {
                 VideoTaskItem task = currentGroup.items.get(position);
+                boolean deleting = TextUtils.equals(deletingUrl, task.getUrl());
+                if (deleting) {
+                    if (row.deleteOverlay.getVisibility() != View.VISIBLE) {
+                        row.deleteOverlay.setAlpha(0f);
+                        row.deleteIcon.setScaleX(0.65f);
+                        row.deleteIcon.setScaleY(0.65f);
+                    }
+                    row.deleteOverlay.setVisibility(View.VISIBLE);
+                    row.deleteOverlay.animate().alpha(1f).setDuration(180).start();
+                    row.deleteIcon.animate().scaleX(1f).scaleY(1f).setDuration(220).start();
+                } else {
+                    row.deleteOverlay.animate().cancel();
+                    row.deleteIcon.animate().cancel();
+                    row.deleteOverlay.setVisibility(View.GONE);
+                    row.deleteOverlay.setAlpha(1f);
+                    row.deleteIcon.setScaleX(1f);
+                    row.deleteIcon.setScaleY(1f);
+                }
                 row.name.setText(episodeName(task));
                 row.state.setText(state(task));
                 row.state.setTextColor(task.isSuccessState() ? primaryColor : task.isErrorState() ? Color.RED : mutedColor);
@@ -431,6 +489,7 @@ public class DownloadActivity extends AppCompatActivity {
                 row.progress.setText(task.getSpeedString() + "  ·  " + task.getDownloadSizeString() + "  ·  " + task.getPercentString());
                 Glide.with(DownloadActivity.this).load(task.getCoverUrl()).centerCrop().into(row.cover);
             } else {
+                row.deleteOverlay.setVisibility(View.GONE);
                 DownloadGroup group = groups.get(position);
                 int completed = 0;
                 int running = 0;
@@ -483,12 +542,16 @@ public class DownloadActivity extends AppCompatActivity {
         final TextView state;
         final TextView progress;
         final ProgressBar bar;
-        Row(ImageView cover, TextView name, TextView state, TextView progress, ProgressBar bar) {
+        final FrameLayout deleteOverlay;
+        final ImageView deleteIcon;
+        Row(ImageView cover, TextView name, TextView state, TextView progress, ProgressBar bar, FrameLayout deleteOverlay, ImageView deleteIcon) {
             this.cover = cover;
             this.name = name;
             this.state = state;
             this.progress = progress;
             this.bar = bar;
+            this.deleteOverlay = deleteOverlay;
+            this.deleteIcon = deleteIcon;
         }
     }
 }

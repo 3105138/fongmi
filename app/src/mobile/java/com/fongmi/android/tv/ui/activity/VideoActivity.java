@@ -358,6 +358,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, T
         showProgress();
         setAnimator();
         renderFallbackName(getName());
+        if (SiteApi.LOCAL.equals(getKey())) mBinding.downloadDetail.setVisibility(View.GONE);
         if (getIntent().hasExtra("local_playlist_paths")) loadLocalPlaylist();
         else checkId();
     }
