@@ -6,6 +6,7 @@ on:
     branches:
       - fongmi
       - upgrade/5.8.7-test
+      - feature/search-exact-danmaku-toggle
     paths:
       - '.github/workflows/build-apk.yml'
       - 'app/**'
