@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.MenuProvider;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.viewbinding.ViewBinding;
 
@@ -108,6 +109,12 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         mBinding.collect.setHasFixedSize(true);
         mBinding.collect.setAdapter(mCollectAdapter = new CollectAdapter(this));
         mBinding.recycler.setHasFixedSize(true);
+        DefaultItemAnimator animator = new DefaultItemAnimator();
+        animator.setAddDuration(220);
+        animator.setMoveDuration(0);
+        animator.setChangeDuration(0);
+        animator.setRemoveDuration(0);
+        mBinding.recycler.setItemAnimator(animator);
         mBinding.recycler.addOnScrollListener(mScroller);
         mBinding.recycler.setAdapter(mSearchAdapter = new SearchAdapter(this));
         ((GridLayoutManager) (mBinding.recycler.getLayoutManager())).setSpanCount(getCount());
@@ -152,7 +159,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         if (result == null || result.getList().isEmpty()) return;
         if (mCollectAdapter.getPosition() == 0) {
             mAllResults.addAll(result.getList());
-            refreshSearchResults();
+            appendSearchResults(result.getList());
         }
         mCollectAdapter.add(Collect.create(result.getList()));
         mCollectAdapter.add(result.getList());
@@ -165,7 +172,7 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         if (same) mCollectAdapter.getActivated().getList().addAll(result.getList());
         if (same) {
             mAllResults.addAll(result.getList());
-            refreshSearchResults();
+            appendSearchResults(result.getList());
         }
     }
 
@@ -181,14 +188,27 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     }
 
 
+    private void appendSearchResults(List<Vod> items) {
+        List<Vod> display = items.stream()
+                .filter(item -> mShowOtherResults || SearchMatch.isExact(getKeyword(), item))
+                .collect(Collectors.toList());
+        if (!display.isEmpty()) mSearchAdapter.addAll(display);
+        updateOtherResults();
+    }
+
     private void refreshSearchResults() {
         List<Vod> exact = mAllResults.stream().filter(item -> SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
         List<Vod> other = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
         List<Vod> display = new ArrayList<>(exact);
         if (mShowOtherResults) display.addAll(other);
         mSearchAdapter.setItems(display);
-        mBinding.otherResults.setVisibility(other.isEmpty() ? View.GONE : View.VISIBLE);
-        mBinding.otherResults.setText(getString(mShowOtherResults ? com.fongmi.android.tv.R.string.search_other_expanded : com.fongmi.android.tv.R.string.search_other_collapsed) + " (" + other.size() + ")");
+        updateOtherResults();
+    }
+
+    private void updateOtherResults() {
+        long count = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).count();
+        mBinding.otherResults.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+        mBinding.otherResults.setText(getString(mShowOtherResults ? com.fongmi.android.tv.R.string.search_other_expanded : com.fongmi.android.tv.R.string.search_other_collapsed) + " (" + count + ")");
     }
 
     @Override
