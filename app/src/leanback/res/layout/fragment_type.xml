@@ -10,18 +10,39 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.fongmi.android.tv.ui.custom.CustomVerticalGridView
-            android:id="@+id/recycler"
+        <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:paddingStart="24dp"
-            android:paddingTop="16dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="24dp"
-            app:focusOutEnd="true"
-            app:focusOutFront="true" />
+            android:orientation="vertical">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/otherResults"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="true"
+                android:paddingStart="24dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="@string/search_other_collapsed"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:visibility="gone" />
+
+            <com.fongmi.android.tv.ui.custom.CustomVerticalGridView
+                android:id="@+id/recycler"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingStart="24dp"
+                android:paddingTop="16dp"
+                android:paddingEnd="24dp"
+                android:paddingBottom="24dp"
+                app:focusOutEnd="true"
+                app:focusOutFront="true" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
 
     </com.fongmi.android.tv.ui.custom.ProgressLayout>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
