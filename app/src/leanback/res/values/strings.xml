@@ -24,4 +24,7 @@
 
     <string name="danmaku_show">弹幕显示</string>
 
+    <string name="search_other_collapsed">其他结果（点击展开）</string>
+    <string name="search_other_expanded">收起其他结果</string>
+
 </resources>
