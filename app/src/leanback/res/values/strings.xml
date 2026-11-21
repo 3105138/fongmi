@@ -22,4 +22,6 @@
     <string name="dialog_action_grid">Switch to grid</string>
     <string name="dialog_action_list">Switch to list</string>
 
+    <string name="danmaku_show">弹幕显示</string>
+
 </resources>
