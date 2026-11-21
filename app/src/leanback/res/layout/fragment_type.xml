@@ -30,6 +30,8 @@
                 android:minHeight="48dp"
                 android:nextFocusDown="@id/recycler"
                 android:text="@string/search_other_collapsed"
+                android:textColor="?attr/colorOnSurface"
+                app:strokeColor="?attr/colorOnSurface"
                 android:textSize="14sp"
                 android:visibility="gone" />
 
