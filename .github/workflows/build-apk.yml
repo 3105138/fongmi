@@ -1,19 +1,10 @@
 
-name: Build FongMi 5.8.7 Official MPV # Rebuild after Media3 audio-track API compatibility fix
+name: Build FongMi 5.8.8 Official MPV # Rebuild after Media3 audio-track API compatibility fix
 
 on:
   push:
     branches:
-      - fongmi
-      - upgrade/5.8.7-test
-    paths:
-      - '.github/workflows/build-apk.yml'
-      - 'app/**'
-      - 'scripts/**'
-      - 'gradle/**'
-      - '*.gradle'
-      - '*.gradle.kts'
-      - 'gradle.properties'
+      - upgrade/5.8.8-test
   workflow_dispatch:
     inputs:
       edition:
@@ -46,18 +37,18 @@ jobs:
           path: mpv-source
 
       - name: Record MPV source revisions
+        id: mpv-source
         shell: bash
         run: |
           set -euo pipefail
-          echo "MPV Android: $(git -C mpv-source rev-parse HEAD)"
+          MPV_ANDROID_SHA="$(git -C mpv-source rev-parse HEAD)"
+          MPV_SOURCE_SHA="$(git ls-remote "$MPV_GIT_URL" "refs/heads/$MPV_GIT_REF" | awk '{print $1}')"
+          test -n "$MPV_SOURCE_SHA"
+          echo "android=$MPV_ANDROID_SHA" >> "$GITHUB_OUTPUT"
+          echo "mpv=$MPV_SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "MPV Android: $MPV_ANDROID_SHA"
           echo "MPV source ref: $MPV_GIT_REF"
-          echo "MPV source commit: $(git ls-remote "$MPV_GIT_URL" "refs/heads/$MPV_GIT_REF" | awk '{print $1}')"
-
-      - name: Setup Java 17 for MPV native build
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+          echo "MPV source commit: $MPV_SOURCE_SHA"
 
       - name: Export reproducible dependency cache key
         working-directory: mpv-source
@@ -66,7 +57,36 @@ jobs:
           set -euo pipefail
           buildscripts/include/ci.sh export >> "$GITHUB_ENV"
 
+      - name: Calculate MPV output cache key
+        id: mpv-key
+        shell: bash
+        env:
+          MPV_ANDROID_SHA: ${{ steps.mpv-source.outputs.android }}
+          MPV_SOURCE_SHA: ${{ steps.mpv-source.outputs.mpv }}
+        run: |
+          set -euo pipefail
+          CACHE_KEY="$(printf '%s\n' "$MPV_ANDROID_SHA" "$MPV_SOURCE_SHA" "$CACHE_IDENTIFIER" | sha256sum | awk '{print $1}')"
+          echo "key=mpv-output-$CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore compiled MPV outputs
+        id: mpv-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            mpv-source/app/src/main/libs/
+            mpv-source/build/renderer-sdk/
+            mpv-source/build/bdj/
+          key: ${{ steps.mpv-key.outputs.key }}
+
+      - name: Setup Java 17 for MPV native build
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Install MPV build dependencies
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -81,6 +101,7 @@ jobs:
           key: ${{ env.CACHE_IDENTIFIER }}
 
       - name: Download or build MPV dependencies
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         working-directory: mpv-source
         shell: bash
         env:
@@ -92,6 +113,7 @@ jobs:
           buildscripts/include/ci.sh install
 
       - name: Build MPV native libraries
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         working-directory: mpv-source
         shell: bash
         env:
@@ -101,12 +123,14 @@ jobs:
           buildscripts/include/ci.sh build
 
       - name: Setup Java 8 for BD-J jars
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "8"
 
       - name: Build matching BD-J jars
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         working-directory: mpv-source
         shell: bash
         run: |
@@ -114,6 +138,7 @@ jobs:
           bash buildscripts/build-bdj-jars.sh
 
       - name: Export renderer SDK
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
         working-directory: mpv-source
         shell: bash
         run: |
@@ -143,7 +168,7 @@ jobs:
           name: mpv-android-fongmi
           path: mpv-source/app/src/main/libs/**/*.so
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
 
       - name: Upload freshly built renderer SDK
         uses: actions/upload-artifact@v4
@@ -163,7 +188,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
-      - name: Checkout FongMi 5.8.7
+      - name: Checkout FongMi 5.8.8
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
@@ -171,7 +196,7 @@ jobs:
       - name: Checkout compatible Media3
         uses: actions/checkout@v4
         with:
-          repository: dlgt6/media
+          repository: FongMi/media
           ref: 01116cae74e3b149b1c295f9a841311ac4aa6e8f
           path: official-media3
 
@@ -499,7 +524,7 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Build FongMi 5.8.7 APK
+      - name: Build FongMi 5.8.8 APK
         shell: bash
         env:
           EDITION: ${{ inputs.edition || 'all' }}
@@ -543,7 +568,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-${{ inputs.edition || 'all' }}
+          name: FongMi-5.8.8-${{ inputs.edition || 'all' }}
           path: output/*.apk
           if-no-files-found: error
 
@@ -551,7 +576,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-diagnostics
+          name: FongMi-5.8.8-diagnostics
           path: |
             native-elf-check/
             official-media3/libraries/mpvplayer/buildout/outputs/

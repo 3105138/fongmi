@@ -4,12 +4,14 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.ListRow;
+import androidx.leanback.widget.Presenter;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.viewbinding.ViewBinding;
 
@@ -29,10 +31,12 @@ import com.fongmi.android.tv.ui.custom.CustomScroller;
 import com.fongmi.android.tv.ui.custom.CustomSelector;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.SearchMatch;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CollectFragment extends BaseFragment implements CustomScroller.Callback, VodPresenter.OnClickListener {
 
@@ -43,6 +47,8 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
     private SiteViewModel mViewModel;
     private Collect mCollect;
     private String mKeyword;
+    private final List<Vod> mAllResults = new ArrayList<>();
+    private boolean mShowOtherResults;
 
     public static CollectFragment newInstance(String keyword, Collect collect) {
         Bundle args = new Bundle();
@@ -69,6 +75,10 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
     @Override
     protected void initView() {
         setRecyclerView();
+        mBinding.otherResults.setOnClickListener(v -> {
+            mShowOtherResults = !mShowOtherResults;
+            refreshSearchResults();
+        });
         setViewModel();
         addVideo(mCollect);
     }
@@ -91,26 +101,59 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
         });
     }
 
-    private boolean checkLastSize(List<Vod> items) {
-        if (mLast == null || items.isEmpty()) return false;
-        int size = Product.getColumn() - mLast.size();
-        if (size == 0) return false;
-        size = Math.min(size, items.size());
-        mLast.addAll(mLast.size(), items.subList(0, size));
-        addVideo(items.subList(size, items.size()));
-        return true;
-    }
-
     private void addVideo(Collect collect) {
         if (collect != null) addVideo(collect.getList());
     }
 
     public void addVideo(List<Vod> items) {
-        if (checkLastSize(items) || getActivity() == null || getActivity().isFinishing()) return;
-        List<ListRow> rows = new ArrayList<>();
+        if (items == null || getActivity() == null || getActivity().isFinishing()) return;
+        mAllResults.addAll(items);
+        appendSearchResults(items);
+    }
+
+    private void appendSearchResults(List<Vod> items) {
+        VodPresenter presenter = new SearchVodPresenter(this);
+        for (Vod item : items) {
+            if (!mShowOtherResults && !SearchMatch.isExact(getKeyword(), item)) continue;
+            if (mLast == null || mLast.size() >= Product.getColumn()) {
+                mLast = new ArrayObjectAdapter(presenter);
+                mAdapter.add(new ListRow(mLast));
+            }
+            mLast.add(item);
+        }
+        updateOtherResults();
+    }
+
+    private void refreshSearchResults() {
+        List<Vod> exact = mAllResults.stream().filter(item -> SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
+        List<Vod> other = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
+        List<Vod> display = new ArrayList<>(exact);
+        if (mShowOtherResults) display.addAll(other);
+        mAdapter.clear();
+        mLast = null;
         VodPresenter presenter = new VodPresenter(this);
-        for (List<Vod> part : Lists.partition(items, Product.getColumn())) rows.add(createVideoRow(part, presenter));
-        mAdapter.addAll(mAdapter.size(), rows);
+        for (List<Vod> part : Lists.partition(display, Product.getColumn())) mAdapter.add(createVideoRow(part, presenter));
+        updateOtherResults();
+    }
+
+    private void updateOtherResults() {
+        long count = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).count();
+        mBinding.otherResults.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+        mBinding.otherResults.setText(getString(mShowOtherResults ? R.string.search_other_expanded : R.string.search_other_collapsed) + " (" + count + ")");
+    }
+
+    private static class SearchVodPresenter extends VodPresenter {
+
+        SearchVodPresenter(OnClickListener listener) {
+            super(listener);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Presenter.ViewHolder viewHolder, Object object) {
+            super.onBindViewHolder(viewHolder, object);
+            viewHolder.view.setAlpha(0f);
+            viewHolder.view.animate().alpha(1f).setDuration(220).start();
+        }
     }
 
     private ListRow createVideoRow(List<Vod> items, VodPresenter presenter) {

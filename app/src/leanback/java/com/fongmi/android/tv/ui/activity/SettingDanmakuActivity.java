@@ -35,7 +35,8 @@ public class SettingDanmakuActivity extends BaseActivity implements DanmakuListe
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        mBinding.danmakuLoad.requestFocus();
+        mBinding.danmakuShow.requestFocus();
+        mBinding.danmakuShowText.setText(Setting.getSwitch(DanmakuSetting.isShow()));
         mBinding.danmakuApiText.setText(getApiStatus());
         mBinding.danmakuAutoText.setText(Setting.getSwitch(DanmakuSetting.isAuto()));
         mBinding.danmakuLoadText.setText(Setting.getSwitch(DanmakuSetting.isLoad()));
@@ -48,7 +49,13 @@ public class SettingDanmakuActivity extends BaseActivity implements DanmakuListe
         mBinding.danmakuApi.setOnClickListener(this::onDanmakuApi);
         mBinding.danmakuAuto.setOnClickListener(this::setDanmakuAuto);
         mBinding.danmakuLoad.setOnClickListener(this::setDanmakuLoad);
+        mBinding.danmakuShow.setOnClickListener(this::setDanmakuShow);
         mBinding.danmakuSpider.setOnClickListener(this::setDanmakuSpider);
+    }
+
+    private void setDanmakuShow(View view) {
+        DanmakuSetting.putShow(!DanmakuSetting.isShow());
+        mBinding.danmakuShowText.setText(Setting.getSwitch(DanmakuSetting.isShow()));
     }
 
     private void setDanmakuLoad(View view) {

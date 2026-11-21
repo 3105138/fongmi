@@ -1,24 +1,13 @@
 
-name: Build FongMi 5.8.7 APK (reuse successful MPV artifacts)
+name: Build FongMi 5.8.8 APK (reuse successful MPV artifacts)
 
 on:
   push:
     branches:
-      - upgrade/5.8.7-test
-      - upgrade/5.8.7-download-test
-    paths:
-      - '.github/workflows/build-apk-only.yml'
-      - 'app/src/main/java/com/fongmi/android/tv/Updater.java'
-      - 'app/src/main/java/com/fongmi/android/tv/api/config/VodConfig.java'
-      - 'app/src/main/java/com/fongmi/android/tv/utils/Github.java'
-      - 'app/src/main/res/**'
-      - 'app/src/mobile/res/**'
-      - 'app/src/leanback/res/**'
-      - 'app/build.gradle'
-      - 'app/src/main/java/**'
-      - 'app/src/mobile/java/**'
-      - 'app/src/leanback/java/**'
-      - 'gradle.properties'
+      - upgrade/5.8.8-test
+      - upgrade/5.8.8-download-test
+      - feature/search-exact-danmaku-toggle
+      - fongmi
   workflow_dispatch:
     inputs:
       edition:
@@ -35,7 +24,56 @@ permissions:
   contents: read
 
 jobs:
+  build-mpv:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download verified MPV native libraries
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-apk-only.yml
+          run_id: 44878992095
+          name: mpv-android-fongmi
+          path: native-input/mpv
+
+      - name: Download verified renderer SDK
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-apk-only.yml
+          run_id: 44878992095
+          name: mpv-android-renderer-sdk
+          path: native-input/renderer
+
+      - name: Verify and re-upload MPV artifacts for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ABI in arm64-v8a armeabi-v7a; do
+            for SO in libmpv.so libplayer.so libffmpeg.so libc++_shared.so; do
+              test -s "native-input/mpv/$ABI/$SO"
+            done
+          done
+          test -s native-input/renderer/files.sha256
+
+      - name: Upload verified MPV native libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpv-android-fongmi
+          path: native-input/mpv/**/*.so
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload verified renderer SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpv-android-renderer-sdk
+          path: native-input/renderer/**
+          if-no-files-found: error
+          retention-days: 90
+
   build:
+    needs: build-mpv
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -44,7 +82,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
-      - name: Checkout FongMi 5.8.7
+      - name: Checkout FongMi 5.8.8
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
@@ -52,7 +90,7 @@ jobs:
       - name: Checkout compatible Media3
         uses: actions/checkout@v4
         with:
-          repository: dlgt6/media
+          repository: FongMi/media
           ref: 01116cae74e3b149b1c295f9a841311ac4aa6e8f
           path: official-media3
 
@@ -111,21 +149,15 @@ jobs:
               "$ANDROID_HOME/platforms/android-37"
           fi
 
-      - name: Download successful MPV native libraries from run #33
-        uses: dawidd6/action-download-artifact@v6
+      - name: Download MPV native libraries from this workflow run
+        uses: actions/download-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build-apk.yml
-          run_id: 41564907362
           name: mpv-android-fongmi
           path: native-input/mpv
 
-      - name: Download successful renderer SDK from run #33
-        uses: dawidd6/action-download-artifact@v6
+      - name: Download renderer SDK from this workflow run
+        uses: actions/download-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build-apk.yml
-          run_id: 41564907362
           name: mpv-android-renderer-sdk
           path: native-input/renderer
 
@@ -135,16 +167,11 @@ jobs:
           set -euo pipefail
 
           for ABI in arm64-v8a armeabi-v7a; do
-            for SO in \
-              libmpv.so \
-              libplayer.so \
-              libffmpeg.so \
-              libc++_shared.so
-            do
+            for SO in libmpv.so libplayer.so libffmpeg.so libc++_shared.so; do
               FILE="native-input/mpv/$ABI/$SO"
-
               if [ ! -s "$FILE" ]; then
                 echo "::error::Missing $FILE"
+                find native-input/mpv -maxdepth 4 -type f -print || true
                 exit 1
               fi
             done
@@ -386,7 +413,7 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Build FongMi 5.8.7 APK
+      - name: Build FongMi 5.8.8 APK
         shell: bash
         env:
           EDITION: ${{ inputs.edition || 'all' }}
@@ -430,7 +457,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-${{ inputs.edition || 'all' }}
+          name: FongMi-5.8.8-${{ inputs.edition || 'all' }}
           path: output/*.apk
           if-no-files-found: error
 
@@ -438,7 +465,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-diagnostics
+          name: FongMi-5.8.8-diagnostics
           path: |
             native-elf-check/
             official-media3/libraries/mpvplayer/buildout/outputs/

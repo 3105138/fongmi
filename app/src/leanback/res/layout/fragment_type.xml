@@ -10,18 +10,47 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.fongmi.android.tv.ui.custom.CustomVerticalGridView
-            android:id="@+id/recycler"
+        <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:paddingStart="24dp"
-            android:paddingTop="16dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="24dp"
-            app:focusOutEnd="true"
-            app:focusOutFront="true" />
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/otherResults"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:layout_marginStart="24dp"
+                android:layout_marginBottom="8dp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:clickable="true"
+                android:minWidth="0dp"
+                android:minHeight="48dp"
+                android:nextFocusDown="@id/recycler"
+                android:text="@string/search_other_collapsed"
+                android:textColor="?attr/colorOnSurface"
+                app:strokeColor="?attr/colorOnSurface"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <com.fongmi.android.tv.ui.custom.CustomVerticalGridView
+                android:id="@+id/recycler"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingStart="24dp"
+                android:paddingTop="16dp"
+                android:paddingEnd="24dp"
+                android:paddingBottom="24dp"
+                android:nextFocusUp="@id/otherResults"
+                app:focusOutEnd="true"
+                app:focusOutFront="true" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
 
     </com.fongmi.android.tv.ui.custom.ProgressLayout>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
