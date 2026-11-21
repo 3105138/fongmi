@@ -37,15 +37,20 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <com.google.android.material.textview.MaterialTextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/otherResults"
-                android:layout_width="match_parent"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingStart="8dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
+                android:layout_gravity="start"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:minWidth="0dp"
+                android:minHeight="40dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:text="@string/search_other_collapsed"
-                android:textColor="@color/white"
                 android:textSize="14sp"
                 android:visibility="gone" />
 
