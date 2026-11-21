@@ -107,7 +107,20 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
     public void addVideo(List<Vod> items) {
         if (items == null || getActivity() == null || getActivity().isFinishing()) return;
         mAllResults.addAll(items);
-        refreshSearchResults();
+        appendSearchResults(items);
+    }
+
+    private void appendSearchResults(List<Vod> items) {
+        VodPresenter presenter = new VodPresenter(this);
+        for (Vod item : items) {
+            if (!mShowOtherResults && !SearchMatch.isExact(getKeyword(), item)) continue;
+            if (mLast == null || mLast.size() >= Product.getColumn()) {
+                mLast = new ArrayObjectAdapter(presenter);
+                mAdapter.add(new ListRow(mLast));
+            }
+            mLast.add(item);
+        }
+        updateOtherResults();
     }
 
     private void refreshSearchResults() {
@@ -118,11 +131,14 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
         mAdapter.clear();
         mLast = null;
         VodPresenter presenter = new VodPresenter(this);
-        List<ListRow> rows = new ArrayList<>();
-        for (List<Vod> part : Lists.partition(display, Product.getColumn())) rows.add(createVideoRow(part, presenter));
-        mAdapter.addAll(0, rows);
-        mBinding.otherResults.setVisibility(other.isEmpty() ? View.GONE : View.VISIBLE);
-        mBinding.otherResults.setText(getString(mShowOtherResults ? R.string.search_other_expanded : R.string.search_other_collapsed) + " (" + other.size() + ")");
+        for (List<Vod> part : Lists.partition(display, Product.getColumn())) createVideoRow(part, presenter);
+        updateOtherResults();
+    }
+
+    private void updateOtherResults() {
+        long count = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).count();
+        mBinding.otherResults.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
+        mBinding.otherResults.setText(getString(mShowOtherResults ? R.string.search_other_expanded : R.string.search_other_collapsed) + " (" + count + ")");
     }
 
     private ListRow createVideoRow(List<Vod> items, VodPresenter presenter) {
