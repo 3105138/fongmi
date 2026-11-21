@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.ItemBridgeAdapter;
 import androidx.leanback.widget.ListRow;
+import androidx.leanback.widget.Presenter;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.viewbinding.ViewBinding;
 
@@ -111,7 +112,7 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
     }
 
     private void appendSearchResults(List<Vod> items) {
-        VodPresenter presenter = new VodPresenter(this);
+        VodPresenter presenter = new SearchVodPresenter(this);
         for (Vod item : items) {
             if (!mShowOtherResults && !SearchMatch.isExact(getKeyword(), item)) continue;
             if (mLast == null || mLast.size() >= Product.getColumn()) {
@@ -139,6 +140,20 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
         long count = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).count();
         mBinding.otherResults.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
         mBinding.otherResults.setText(getString(mShowOtherResults ? R.string.search_other_expanded : R.string.search_other_collapsed) + " (" + count + ")");
+    }
+
+    private static class SearchVodPresenter extends VodPresenter {
+
+        SearchVodPresenter(OnClickListener listener) {
+            super(listener);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Presenter.ViewHolder viewHolder, Object object) {
+            super.onBindViewHolder(viewHolder, object);
+            viewHolder.view.setAlpha(0f);
+            viewHolder.view.animate().alpha(1f).setDuration(220).start();
+        }
     }
 
     private ListRow createVideoRow(List<Vod> items, VodPresenter presenter) {
