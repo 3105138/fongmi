@@ -6,6 +6,7 @@ on:
     branches:
       - upgrade/5.8.7-test
       - upgrade/5.8.7-download-test
+      - feature/search-exact-danmaku-toggle
     paths:
       - '.github/workflows/build-apk-only.yml'
       - 'app/src/main/java/com/fongmi/android/tv/Updater.java'
@@ -52,7 +53,7 @@ jobs:
       - name: Checkout compatible Media3
         uses: actions/checkout@v4
         with:
-          repository: dlgt6/media
+          repository: FongMi/media
           ref: 01116cae74e3b149b1c295f9a841311ac4aa6e8f
           path: official-media3
 
