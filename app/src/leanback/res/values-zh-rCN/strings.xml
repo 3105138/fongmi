@@ -22,4 +22,6 @@
     <string name="dialog_action_grid">切换为网格</string>
     <string name="dialog_action_list">切换为列表</string>
 
+    <string name="danmaku_show">弹幕显示</string>
+
 </resources>
