@@ -131,7 +131,7 @@ public class CollectFragment extends BaseFragment implements CustomScroller.Call
         mAdapter.clear();
         mLast = null;
         VodPresenter presenter = new VodPresenter(this);
-        for (List<Vod> part : Lists.partition(display, Product.getColumn())) createVideoRow(part, presenter);
+        for (List<Vod> part : Lists.partition(display, Product.getColumn())) mAdapter.add(createVideoRow(part, presenter));
         updateOtherResults();
     }
 
