@@ -60,6 +60,8 @@ public class VodPresenter extends Presenter {
     @Override
     public void onBindViewHolder(@NonNull Presenter.ViewHolder viewHolder, Object object) {
         ((BaseVodHolder) viewHolder).initView((Vod) object);
+        viewHolder.view.setAlpha(0f);
+        viewHolder.view.animate().alpha(1f).setDuration(220).start();
     }
 
     @Override
