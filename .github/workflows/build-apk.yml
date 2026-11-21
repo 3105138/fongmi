@@ -38,26 +38,19 @@ jobs:
           ref: fongmi
           path: mpv-source
 
-      - name: Record MPV source revisions and cache key
-        id: mpv-key
+      - name: Record MPV source revisions
+        id: mpv-source
         shell: bash
         run: |
           set -euo pipefail
           MPV_ANDROID_SHA="$(git -C mpv-source rev-parse HEAD)"
           MPV_SOURCE_SHA="$(git ls-remote "$MPV_GIT_URL" "refs/heads/$MPV_GIT_REF" | awk '{print $1}')"
           test -n "$MPV_SOURCE_SHA"
-          CACHE_KEY="$(printf '%s\n' "$MPV_ANDROID_SHA" "$MPV_SOURCE_SHA" "$CACHE_IDENTIFIER" | sha256sum | awk '{print $1}')"
-          echo "key=mpv-output-$CACHE_KEY" >> "$GITHUB_OUTPUT"
+          echo "android=$MPV_ANDROID_SHA" >> "$GITHUB_OUTPUT"
+          echo "mpv=$MPV_SOURCE_SHA" >> "$GITHUB_OUTPUT"
           echo "MPV Android: $MPV_ANDROID_SHA"
           echo "MPV source ref: $MPV_GIT_REF"
           echo "MPV source commit: $MPV_SOURCE_SHA"
-
-      - name: Setup Java 17 for MPV native build
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
 
       - name: Export reproducible dependency cache key
         working-directory: mpv-source
@@ -65,6 +58,34 @@ jobs:
         run: |
           set -euo pipefail
           buildscripts/include/ci.sh export >> "$GITHUB_ENV"
+
+      - name: Calculate MPV output cache key
+        id: mpv-key
+        shell: bash
+        env:
+          MPV_ANDROID_SHA: ${{ steps.mpv-source.outputs.android }}
+          MPV_SOURCE_SHA: ${{ steps.mpv-source.outputs.mpv }}
+        run: |
+          set -euo pipefail
+          CACHE_KEY="$(printf '%s\n' "$MPV_ANDROID_SHA" "$MPV_SOURCE_SHA" "$CACHE_IDENTIFIER" | sha256sum | awk '{print $1}')"
+          echo "key=mpv-output-$CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore compiled MPV outputs
+        id: mpv-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            mpv-source/app/src/main/libs/
+            mpv-source/build/renderer-sdk/
+            mpv-source/build/bdj/
+          key: ${{ steps.mpv-key.outputs.key }}
+
+      - name: Setup Java 17 for MPV native build
+        if: steps.mpv-cache.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Restore compiled MPV outputs
         id: mpv-cache
