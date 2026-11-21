@@ -7,19 +7,6 @@ on:
       - upgrade/5.8.7-test
       - upgrade/5.8.7-download-test
       - feature/search-exact-danmaku-toggle
-    paths:
-      - '.github/workflows/build-apk-only.yml'
-      - 'app/src/main/java/com/fongmi/android/tv/Updater.java'
-      - 'app/src/main/java/com/fongmi/android/tv/api/config/VodConfig.java'
-      - 'app/src/main/java/com/fongmi/android/tv/utils/Github.java'
-      - 'app/src/main/res/**'
-      - 'app/src/mobile/res/**'
-      - 'app/src/leanback/res/**'
-      - 'app/build.gradle'
-      - 'app/src/main/java/**'
-      - 'app/src/mobile/java/**'
-      - 'app/src/leanback/java/**'
-      - 'gradle.properties'
   workflow_dispatch:
     inputs:
       edition:
