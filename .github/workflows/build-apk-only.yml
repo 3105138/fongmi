@@ -6,7 +6,6 @@ on:
     branches:
       - upgrade/5.8.7-test
       - upgrade/5.8.7-download-test
-      - feature/search-exact-danmaku-toggle
   workflow_dispatch:
     inputs:
       edition:
