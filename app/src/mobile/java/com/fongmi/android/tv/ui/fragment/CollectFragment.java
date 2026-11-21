@@ -32,6 +32,10 @@ import com.fongmi.android.tv.ui.adapter.SearchAdapter;
 import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.custom.CustomScroller;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.SearchMatch;
+
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import java.util.List;
 
@@ -43,6 +47,8 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     private CustomScroller mScroller;
     private SiteViewModel mViewModel;
     private List<Site> mSites;
+    private final List<Vod> mAllResults = new ArrayList<>();
+    private boolean mShowOtherResults;
 
     public static CollectFragment newInstance(String keyword) {
         Bundle args = new Bundle();
@@ -84,6 +90,10 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
     @Override
     protected void initEvent() {
         mBinding.toolbar.setOnClickListener(this::onEdit);
+        mBinding.otherResults.setOnClickListener(v -> {
+            mShowOtherResults = !mShowOtherResults;
+            refreshSearchResults();
+        });
     }
 
     private void onEdit(View view) {
@@ -140,7 +150,10 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
 
     private void setCollect(Result result) {
         if (result == null || result.getList().isEmpty()) return;
-        if (mCollectAdapter.getPosition() == 0) mSearchAdapter.addAll(result.getList());
+        if (mCollectAdapter.getPosition() == 0) {
+            mAllResults.addAll(result.getList());
+            refreshSearchResults();
+        }
         mCollectAdapter.add(Collect.create(result.getList()));
         mCollectAdapter.add(result.getList());
     }
@@ -150,14 +163,32 @@ public class CollectFragment extends BaseFragment implements MenuProvider, Colle
         mScroller.endLoading(result);
         boolean same = !result.getList().isEmpty() && mCollectAdapter.getActivated().getSite().equals(result.getVod().getSite());
         if (same) mCollectAdapter.getActivated().getList().addAll(result.getList());
-        if (same) mSearchAdapter.addAll(result.getList());
+        if (same) {
+            mAllResults.addAll(result.getList());
+            refreshSearchResults();
+        }
     }
 
     @Override
     public void onItemClick(int position, Collect item) {
-        mSearchAdapter.setItems(item.getList(), () -> mBinding.recycler.scrollToPosition(0));
+        mAllResults.clear();
+        mAllResults.addAll(item.getList());
+        mShowOtherResults = false;
+        refreshSearchResults();
+        mBinding.recycler.scrollToPosition(0);
         mCollectAdapter.setSelected(position);
         mScroller.setPage(item.getPage());
+    }
+
+
+    private void refreshSearchResults() {
+        List<Vod> exact = mAllResults.stream().filter(item -> SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
+        List<Vod> other = mAllResults.stream().filter(item -> !SearchMatch.isExact(getKeyword(), item)).collect(Collectors.toList());
+        List<Vod> display = new ArrayList<>(exact);
+        if (mShowOtherResults) display.addAll(other);
+        mSearchAdapter.setItems(display);
+        mBinding.otherResults.setVisibility(other.isEmpty() ? View.GONE : View.VISIBLE);
+        mBinding.otherResults.setText(getString(mShowOtherResults ? com.fongmi.android.tv.R.string.search_other_expanded : com.fongmi.android.tv.R.string.search_other_collapsed) + " (" + other.size() + ")");
     }
 
     @Override
