@@ -1,12 +1,10 @@
 
-name: Build FongMi 5.8.7 Official MPV # Rebuild after Media3 audio-track API compatibility fix
+name: Build FongMi 5.8.8 Official MPV # Rebuild after Media3 audio-track API compatibility fix
 
 on:
   push:
     branches:
-      - fongmi
-      - upgrade/5.8.7-test
-      - feature/search-exact-danmaku-toggle
+      - upgrade/5.8.8-test
   workflow_dispatch:
     inputs:
       edition:
@@ -190,7 +188,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
-      - name: Checkout FongMi 5.8.7
+      - name: Checkout FongMi 5.8.8
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
@@ -526,7 +524,7 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Build FongMi 5.8.7 APK
+      - name: Build FongMi 5.8.8 APK
         shell: bash
         env:
           EDITION: ${{ inputs.edition || 'all' }}
@@ -570,7 +568,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-${{ inputs.edition || 'all' }}
+          name: FongMi-5.8.8-${{ inputs.edition || 'all' }}
           path: output/*.apk
           if-no-files-found: error
 
@@ -578,7 +576,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.7-diagnostics
+          name: FongMi-5.8.8-diagnostics
           path: |
             native-elf-check/
             official-media3/libraries/mpvplayer/buildout/outputs/
