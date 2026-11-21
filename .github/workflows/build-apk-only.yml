@@ -99,40 +99,39 @@ jobs:
               "$ANDROID_HOME/platforms/android-37"
           fi
 
-      - name: Download the verified MPV libraries from formal APK build #54
+      - name: Download successful MPV native libraries from run #33
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build-apk-only.yml
-          run_id: 42158828348
-          name: FongMi-5.8.7-all
-          path: native-input/apk
+          workflow: build-apk.yml
+          run_id: 41564907362
+          name: mpv-android-fongmi
+          path: native-input/mpv
 
-      - name: Extract and verify official MPV native libraries
+      - name: Download successful renderer SDK from run #33
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-apk.yml
+          run_id: 41564907362
+          name: mpv-android-renderer-sdk
+          path: native-input/renderer
+
+      - name: Verify official MPV native files
         shell: bash
         run: |
           set -euo pipefail
 
-          mkdir -p native-input/mpv
-          APK="$(find native-input/apk -type f -name '*.apk' -print -quit)"
-          if [ -z "$APK" ]; then
-            echo "::error::No APK found in the verified formal build artifact"
-            find native-input/apk -maxdepth 3 -type f -print || true
-            exit 1
-          fi
-
           for ABI in arm64-v8a armeabi-v7a; do
-            mkdir -p "native-input/mpv/$ABI"
             for SO in libmpv.so libplayer.so libffmpeg.so libc++_shared.so; do
-              ENTRY="lib/$ABI/$SO"
-              if ! unzip -Z1 "$APK" | grep -Fxq "$ENTRY"; then
-                echo "::error::Missing $ENTRY in $APK"
+              FILE="native-input/mpv/$ABI/$SO"
+              if [ ! -s "$FILE" ]; then
+                echo "::error::Missing $FILE"
+                find native-input/mpv -maxdepth 4 -type f -print || true
                 exit 1
               fi
-              unzip -p "$APK" "$ENTRY" > "native-input/mpv/$ABI/$SO"
-              test -s "native-input/mpv/$ABI/$SO"
             done
-            echo "Verified MPV native libraries: $ABI"
+            echo "Verified $ABI"
           done
 
       - name: Setup Gradle
