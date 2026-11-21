@@ -25,161 +25,51 @@ permissions:
 jobs:
   build-mpv:
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
-    env:
-      MPV_GIT_URL: https://github.com/FongMi/mpv.git
-      MPV_GIT_REF: fongmi
-      MPV_ANDROID_ARCHES: armv7l arm64
     steps:
-      - name: Checkout official MPV Android build scripts
-        uses: actions/checkout@v4
+      - name: Download verified MPV native libraries
+        uses: dawidd6/action-download-artifact@v6
         with:
-          repository: FongMi/mpv-android
-          ref: fongmi
-          path: mpv-source
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-apk-only.yml
+          run_id: 44878992095
+          name: mpv-android-fongmi
+          path: native-input/mpv
 
-      - name: Record MPV source revisions
-        id: mpv-source
-        shell: bash
-        run: |
-          set -euo pipefail
-          MPV_ANDROID_SHA="$(git -C mpv-source rev-parse HEAD)"
-          MPV_SOURCE_SHA="$(git ls-remote "$MPV_GIT_URL" "refs/heads/$MPV_GIT_REF" | awk '{print $1}')"
-          test -n "$MPV_SOURCE_SHA"
-          echo "android=$MPV_ANDROID_SHA" >> "$GITHUB_OUTPUT"
-          echo "mpv=$MPV_SOURCE_SHA" >> "$GITHUB_OUTPUT"
-          echo "MPV Android: $MPV_ANDROID_SHA"
-          echo "MPV source ref: $MPV_GIT_REF"
-          echo "MPV source commit: $MPV_SOURCE_SHA"
-
-      - name: Export reproducible dependency cache key
-        working-directory: mpv-source
-        shell: bash
-        run: |
-          set -euo pipefail
-          buildscripts/include/ci.sh export >> "$GITHUB_ENV"
-
-      - name: Calculate MPV output cache key
-        id: mpv-key
-        shell: bash
-        env:
-          MPV_ANDROID_SHA: ${{ steps.mpv-source.outputs.android }}
-          MPV_SOURCE_SHA: ${{ steps.mpv-source.outputs.mpv }}
-        run: |
-          set -euo pipefail
-          CACHE_KEY="$(printf '%s\n' "$MPV_ANDROID_SHA" "$MPV_SOURCE_SHA" "$CACHE_IDENTIFIER" | sha256sum | awk '{print $1}')"
-          echo "key=mpv-output-$CACHE_KEY" >> "$GITHUB_OUTPUT"
-
-      - name: Restore compiled MPV outputs
-        id: mpv-cache
-        uses: actions/cache@v4
+      - name: Download verified renderer SDK
+        uses: dawidd6/action-download-artifact@v6
         with:
-          path: |
-            mpv-source/app/src/main/libs/
-            mpv-source/build/renderer-sdk/
-            mpv-source/build/bdj/
-          key: ${{ steps.mpv-key.outputs.key }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: build-apk-only.yml
+          run_id: 44878992095
+          name: mpv-android-renderer-sdk
+          path: native-input/renderer
 
-      - name: Setup Java 17 for MPV native build
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Install MPV build dependencies
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y autoconf pkgconf libtool ninja-build cmake python3-pip gperf nasm patch ant
-          sudo pip3 install --break-system-packages meson
-
-      - name: Cache MPV native dependency prefix
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/mpv-android-cache/
-          key: ${{ env.CACHE_IDENTIFIER }}
-
-      - name: Download or build MPV dependencies
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        working-directory: mpv-source
-        shell: bash
-        env:
-          CACHE_MODE: "folder"
-          CACHE_FOLDER: ${{ runner.temp }}/mpv-android-cache
-        run: |
-          set -euo pipefail
-          mkdir -p "$CACHE_FOLDER"
-          buildscripts/include/ci.sh install
-
-      - name: Build MPV native libraries
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        working-directory: mpv-source
-        shell: bash
-        env:
-          MPV_ANDROID_NATIVE_ONLY: "1"
-        run: |
-          set -euo pipefail
-          buildscripts/include/ci.sh build
-
-      - name: Setup Java 8 for BD-J jars
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "8"
-
-      - name: Build matching BD-J jars
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        working-directory: mpv-source
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash buildscripts/build-bdj-jars.sh
-
-      - name: Export renderer SDK
-        if: steps.mpv-cache.outputs.cache-hit != 'true'
-        working-directory: mpv-source
-        shell: bash
-        run: |
-          set -euo pipefail
-          buildscripts/export-renderer-sdk.sh
-
-      - name: Verify MPV native build outputs
+      - name: Verify and re-upload MPV artifacts for this run
         shell: bash
         run: |
           set -euo pipefail
           for ABI in arm64-v8a armeabi-v7a; do
             for SO in libmpv.so libplayer.so libffmpeg.so libc++_shared.so; do
-              FILE="mpv-source/app/src/main/libs/$ABI/$SO"
-              if [ ! -s "$FILE" ]; then
-                echo "::error::Missing MPV output: $FILE"
-                find mpv-source/app/src/main -type f -name '*.so' -print || true
-                exit 1
-              fi
+              test -s "native-input/mpv/$ABI/$SO"
             done
           done
-          test -s mpv-source/build/renderer-sdk/files.sha256
-          echo "Both MPV ABIs and renderer SDK verified."
+          test -s native-input/renderer/files.sha256
 
-      - name: Upload freshly built MPV native libraries
+      - name: Upload verified MPV native libraries
         uses: actions/upload-artifact@v4
         with:
           name: mpv-android-fongmi
-          path: mpv-source/app/src/main/libs/**/*.so
+          path: native-input/mpv/**/*.so
           if-no-files-found: error
           retention-days: 90
 
-      - name: Upload freshly built renderer SDK
+      - name: Upload verified renderer SDK
         uses: actions/upload-artifact@v4
         with:
           name: mpv-android-renderer-sdk
-          path: mpv-source/build/renderer-sdk/**
+          path: native-input/renderer/**
           if-no-files-found: error
           retention-days: 90
-
 
   build:
     needs: build-mpv
