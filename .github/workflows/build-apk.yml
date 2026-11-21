@@ -87,16 +87,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Restore compiled MPV outputs
-        id: mpv-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            mpv-source/app/src/main/libs/
-            mpv-source/build/renderer-sdk/
-            mpv-source/build/bdj/
-          key: ${{ steps.mpv-key.outputs.key }}
-
       - name: Install MPV build dependencies
         if: steps.mpv-cache.outputs.cache-hit != 'true'
         shell: bash
