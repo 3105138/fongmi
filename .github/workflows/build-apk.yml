@@ -170,7 +170,7 @@ jobs:
           name: mpv-android-fongmi
           path: mpv-source/app/src/main/libs/**/*.so
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
 
       - name: Upload freshly built renderer SDK
         uses: actions/upload-artifact@v4
@@ -198,7 +198,7 @@ jobs:
       - name: Checkout compatible Media3
         uses: actions/checkout@v4
         with:
-          repository: dlgt6/media
+          repository: FongMi/media
           ref: 01116cae74e3b149b1c295f9a841311ac4aa6e8f
           path: official-media3
 
