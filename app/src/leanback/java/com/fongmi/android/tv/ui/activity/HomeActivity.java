@@ -251,8 +251,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         bindNewTV2Navigation(R.id.newtv2NavKeep, () -> KeepActivity.start(this));
         bindNewTV2Navigation(R.id.newtv2NavConnect, () -> LocalConnectDialog.show(this, "push"));
         bindNewTV2Navigation(R.id.newtv2NavSetting, () -> SettingActivity.start(this));
-        View live = findViewById(R.id.newtv2NavLive);
-        if (live != null) live.setVisibility(LiveConfig.hasUrl() ? View.VISIBLE : View.GONE);
+        updateNewTV2NavigationAvailability();
         PosterFocusAnimator.bind(mBinding.title, false);
         View home = findViewById(R.id.newtv2NavHome);
         if (home != null) home.setSelected(true);
@@ -314,8 +313,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void onConfigReady() {
         actionReady = true;
+        updateNewTV2NavigationAvailability();
         showContent();
         consumeAction();
+    }
+
+    private void updateNewTV2NavigationAvailability() {
+        if (!Setting.isNewTV2Theme()) return;
+        View live = findViewById(R.id.newtv2NavLive);
+        if (live != null) live.setVisibility(LiveConfig.hasUrl() ? View.VISIBLE : View.GONE);
     }
 
     private void showContent() {
