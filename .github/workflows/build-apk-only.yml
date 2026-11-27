@@ -6,6 +6,7 @@ on:
     branches:
       - upgrade/5.8.8-test
       - upgrade/5.8.8-download-test
+      - upgrade/newtv2-theme-test
       - feature/search-exact-danmaku-toggle
       - fongmi
   workflow_dispatch:
