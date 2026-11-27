@@ -235,7 +235,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         ImgUtil.load(item.getName(), item.getPic(), poster, false);
         title.setText(item.getName());
         String value = item.getRemarks();
-        remark.setText(TextUtils.isEmpty(value) ? R.string.newtv2_hero_subtitle : value);
+        if (TextUtils.isEmpty(value)) remark.setText(R.string.newtv2_hero_subtitle);
+        else remark.setText(value);
     }
 
     /** NewTV2-style navigation reuses the existing FongMi destinations and data. */
