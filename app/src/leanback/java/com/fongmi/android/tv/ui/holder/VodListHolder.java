@@ -33,6 +33,7 @@ public class VodListHolder extends BaseVodHolder {
 
     @Override
     public void unbind() {
+        resetFocus();
         Glide.with(binding.image).clear(binding.image);
     }
 }

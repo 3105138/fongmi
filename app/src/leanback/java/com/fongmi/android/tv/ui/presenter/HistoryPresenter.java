@@ -12,6 +12,8 @@ import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.databinding.AdapterVodBinding;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.ui.custom.PosterFocusAnimator;
 import com.fongmi.android.tv.utils.ResUtil;
 
 public class HistoryPresenter extends Presenter {
@@ -63,6 +65,7 @@ public class HistoryPresenter extends Presenter {
         ViewHolder holder = new ViewHolder(AdapterVodBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
         holder.binding.getRoot().getLayoutParams().width = width;
         holder.binding.image.getLayoutParams().height = height;
+        if (Setting.isNewTV2Theme()) PosterFocusAnimator.bind(holder.binding.getRoot(), false);
         return holder;
     }
 
@@ -84,6 +87,7 @@ public class HistoryPresenter extends Presenter {
     @Override
     public void onUnbindViewHolder(@NonNull Presenter.ViewHolder viewHolder) {
         ViewHolder holder = (ViewHolder) viewHolder;
+        if (Setting.isNewTV2Theme()) PosterFocusAnimator.reset(holder.binding.getRoot());
         Glide.with(holder.binding.image).clear(holder.binding.image);
     }
 
