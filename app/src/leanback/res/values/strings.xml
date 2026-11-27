@@ -37,4 +37,6 @@
     <string name="newtv2_nav_setting">Settings</string>
     <string name="newtv2_hero_label">FEATURED</string>
     <string name="newtv2_hero_subtitle">From your current video source</string>
+    <string name="newtv2_nav_live">Live</string>
+    <string name="newtv2_nav_connect">Cast</string>
 </resources>
