@@ -59,6 +59,7 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.custom.CustomRowPresenter;
 import com.fongmi.android.tv.ui.custom.CustomSelector;
 import com.fongmi.android.tv.ui.custom.CustomTitleView;
+import com.fongmi.android.tv.ui.custom.PosterFocusAnimator;
 import com.fongmi.android.tv.ui.dialog.LocalConnectDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.presenter.FuncPresenter;
@@ -243,9 +244,14 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             mBinding.recycler.requestFocus();
         });
         bindNewTV2Navigation(R.id.newtv2NavVod, () -> VodActivity.start(this, mResult));
+        bindNewTV2Navigation(R.id.newtv2NavLive, () -> LiveActivity.start(this));
         bindNewTV2Navigation(R.id.newtv2NavSearch, () -> SearchActivity.start(this));
         bindNewTV2Navigation(R.id.newtv2NavKeep, () -> KeepActivity.start(this));
+        bindNewTV2Navigation(R.id.newtv2NavConnect, () -> LocalConnectDialog.show(this, "push"));
         bindNewTV2Navigation(R.id.newtv2NavSetting, () -> SettingActivity.start(this));
+        View live = findViewById(R.id.newtv2NavLive);
+        if (live != null) live.setVisibility(LiveConfig.hasUrl() ? View.VISIBLE : View.GONE);
+        PosterFocusAnimator.bind(mBinding.title, false);
         View site = findViewById(R.id.newtv2SiteEntry);
         if (site != null) site.setOnClickListener(view -> showDialog());
         View home = findViewById(R.id.newtv2NavHome);
@@ -256,6 +262,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         View view = findViewById(id);
         if (view == null) return;
         view.setOnClickListener(v -> action.run());
+        PosterFocusAnimator.bind(view, false);
     }
 
     private void setAdapter() {
