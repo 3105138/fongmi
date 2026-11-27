@@ -65,6 +65,7 @@
                 android:layout_height="96dp"
                 android:layout_marginTop="10dp"
                 android:maxWidth="420dp"
+                android:adjustViewBounds="true"
                 android:scaleType="fitCenter"
                 android:visibility="gone" />
 

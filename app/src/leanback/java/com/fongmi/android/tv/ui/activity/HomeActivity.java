@@ -320,6 +320,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         cards.setItems(vods,new BaseDiffCallback<Vod>());
         if(!mNewTV2BoardRowsAdded[board]){
             int position=mAdapter.indexOf(R.string.home_recommend);
+            for (int later=board+1; later<NEWTV2_BOARD_TITLES.length; later++) if (mNewTV2BoardRowsAdded[later]) position-=2;
             mAdapter.add(position,NEWTV2_BOARD_TITLES[board]);
             mAdapter.add(position+1,new ListRow(cards));
             mNewTV2BoardAdapters[board]=cards;mNewTV2BoardRowsAdded[board]=true;
