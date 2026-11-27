@@ -14,9 +14,23 @@ public class Setting {
     private static final int MAX_SITE_MODE = 1;
     private static final int MIN_SYNC_MODE = 0;
     private static final int MAX_SYNC_MODE = 2;
+    public static final int HOME_THEME_ORIGINAL = 0;
+    public static final int HOME_THEME_NEWTV2 = 1;
 
     public static String getSwitch(boolean value) {
         return ResUtil.getString(value ? R.string.setting_on : R.string.setting_off);
+    }
+
+    public static int getHomeTheme() {
+        return Math.clamp(Prefers.getInt("home_theme", HOME_THEME_ORIGINAL), HOME_THEME_ORIGINAL, HOME_THEME_NEWTV2);
+    }
+
+    public static void putHomeTheme(int theme) {
+        Prefers.put("home_theme", Math.clamp(theme, HOME_THEME_ORIGINAL, HOME_THEME_NEWTV2));
+    }
+
+    public static boolean isNewTV2Theme() {
+        return getHomeTheme() == HOME_THEME_NEWTV2;
     }
 
     public static String getDoh() {

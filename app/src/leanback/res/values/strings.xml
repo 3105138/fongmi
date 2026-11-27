@@ -27,4 +27,14 @@
     <string name="search_other_collapsed">其他结果（点击展开）</string>
     <string name="search_other_expanded">收起其他结果</string>
 
+    <string name="setting_home_theme">Home theme</string>
+    <string name="setting_theme_original">Original</string>
+    <string name="setting_theme_newtv2">NewTV2</string>
+    <string name="newtv2_nav_home">Home</string>
+    <string name="newtv2_nav_vod">Library</string>
+    <string name="newtv2_nav_search">Search</string>
+    <string name="newtv2_nav_keep">Favorites</string>
+    <string name="newtv2_nav_setting">Settings</string>
+    <string name="newtv2_hero_label">FEATURED</string>
+    <string name="newtv2_hero_subtitle">From your current video source</string>
 </resources>

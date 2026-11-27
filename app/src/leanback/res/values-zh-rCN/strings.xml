@@ -27,4 +27,14 @@
     <string name="search_other_collapsed">其他结果（点击展开）</string>
     <string name="search_other_expanded">收起其他结果</string>
 
+    <string name="setting_home_theme">首页主题风格</string>
+    <string name="setting_theme_original">原版风格</string>
+    <string name="setting_theme_newtv2">NewTV2 风格</string>
+    <string name="newtv2_nav_home">首页</string>
+    <string name="newtv2_nav_vod">片库</string>
+    <string name="newtv2_nav_search">搜索</string>
+    <string name="newtv2_nav_keep">收藏</string>
+    <string name="newtv2_nav_setting">设置</string>
+    <string name="newtv2_hero_label">精选推荐</string>
+    <string name="newtv2_hero_subtitle">来自当前点播配置源</string>
 </resources>

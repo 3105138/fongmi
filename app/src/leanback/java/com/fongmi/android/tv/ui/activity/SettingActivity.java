@@ -85,6 +85,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         mBinding.dohText.setText(getDohList()[getDohIndex()]);
         mBinding.incognitoText.setText(Setting.getSwitch(Setting.isIncognito()));
         mBinding.sizeText.setText((size = ResUtil.getStringArray(R.array.select_size))[PlayerSetting.getSize()]);
+        mBinding.themeText.setText(Setting.isNewTV2Theme() ? R.string.setting_theme_newtv2 : R.string.setting_theme_original);
     }
 
     private void setCacheText() {
@@ -121,6 +122,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         mBinding.wallDefault.setOnClickListener(this::setWallDefault);
         mBinding.wallRefresh.setOnClickListener(this::setWallRefresh);
         mBinding.wallRefresh.setOnLongClickListener(this::onWallHistory);
+        mBinding.theme.setOnClickListener(this::setHomeTheme);
     }
 
     @Override
@@ -228,6 +230,11 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
 
     private void onVersion(View view) {
         Updater.get().start(this, true);
+    }
+
+    private void setHomeTheme(View view) {
+        Setting.putHomeTheme(Setting.isNewTV2Theme() ? Setting.HOME_THEME_ORIGINAL : Setting.HOME_THEME_NEWTV2);
+        HomeActivity.restartForTheme(this);
     }
 
     private void setWallDefault(View view) {

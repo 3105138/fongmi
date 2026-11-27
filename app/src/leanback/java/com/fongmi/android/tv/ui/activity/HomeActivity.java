@@ -1,12 +1,16 @@
 package com.fongmi.android.tv.ui.activity;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -111,7 +115,17 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected ViewBinding getBinding() {
-        return mBinding = ActivityHomeBinding.inflate(getLayoutInflater());
+        int layout = Setting.isNewTV2Theme() ? R.layout.activity_home_newtv2 : R.layout.activity_home;
+        View root = LayoutInflater.from(this).inflate(layout, null, false);
+        return mBinding = ActivityHomeBinding.bind(root);
+    }
+
+    /** Relaunch the existing TV home using the newly selected layout. */
+    public static void restartForTheme(Activity activity) {
+        Intent intent = new Intent(activity, HomeActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        activity.startActivity(intent);
+        activity.finish();
     }
 
     @Override
@@ -153,6 +167,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void initEvent() {
         mBinding.title.setListener(this);
+        if (Setting.isNewTV2Theme()) setNewTV2Navigation();
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
@@ -184,9 +199,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         selector.addPresenter(Integer.class, new HeaderPresenter());
         selector.addPresenter(String.class, new ProgressPresenter());
         selector.addPresenter(Vod.class, new VodPresenter(this, Style.list()));
-        selector.addPresenter(ListRow.class, new CustomRowPresenter(16), VodPresenter.class);
-        selector.addPresenter(ListRow.class, new CustomRowPresenter(16), FuncPresenter.class);
-        selector.addPresenter(ListRow.class, new CustomRowPresenter(16, FocusHighlight.ZOOM_FACTOR_SMALL, HorizontalGridView.FOCUS_SCROLL_ALIGNED), HistoryPresenter.class);
+        int rowZoom = Setting.isNewTV2Theme() ? FocusHighlight.ZOOM_FACTOR_NONE : FocusHighlight.ZOOM_FACTOR_SMALL;
+        int historyScroll = Setting.isNewTV2Theme() ? HorizontalGridView.FOCUS_SCROLL_ITEM : HorizontalGridView.FOCUS_SCROLL_ALIGNED;
+        selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom), VodPresenter.class);
+        selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom), FuncPresenter.class);
+        selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom, historyScroll), HistoryPresenter.class);
         mBinding.recycler.setAdapter(new ItemBridgeAdapter(mAdapter = new ArrayObjectAdapter(selector)));
         mBinding.recycler.setVerticalSpacing(ResUtil.dp2px(16));
     }
@@ -200,12 +217,51 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private void onResult(Result result) {
         mAdapter.remove("progress");
         addVideo(mResult = result);
+        updateNewTV2Hero(result);
         Cache.clear().put(result);
+    }
+
+    /** Use the current configured source's first item as the featured NewTV2-style artwork. */
+    private void updateNewTV2Hero(Result result) {
+        if (!Setting.isNewTV2Theme() || result == null || result.getList().isEmpty()) return;
+        Vod item = result.getList().get(0);
+        ImageView poster = findViewById(R.id.newtv2HeroPoster);
+        TextView title = findViewById(R.id.newtv2HeroTitle);
+        TextView remark = findViewById(R.id.newtv2HeroRemark);
+        if (poster == null || title == null || remark == null) return;
+        poster.setVisibility(View.VISIBLE);
+        ImgUtil.load(item.getName(), item.getPic(), poster, false);
+        title.setText(item.getName());
+        String value = item.getRemarks();
+        remark.setText(TextUtils.isEmpty(value) ? R.string.newtv2_hero_subtitle : value);
+    }
+
+    /** NewTV2-style navigation reuses the existing FongMi destinations and data. */
+    private void setNewTV2Navigation() {
+        bindNewTV2Navigation(R.id.newtv2NavHome, () -> {
+            mBinding.recycler.scrollToPosition(0);
+            mBinding.recycler.requestFocus();
+        });
+        bindNewTV2Navigation(R.id.newtv2NavVod, () -> VodActivity.start(this, mResult));
+        bindNewTV2Navigation(R.id.newtv2NavSearch, () -> SearchActivity.start(this));
+        bindNewTV2Navigation(R.id.newtv2NavKeep, () -> KeepActivity.start(this));
+        bindNewTV2Navigation(R.id.newtv2NavSetting, () -> SettingActivity.start(this));
+        View site = findViewById(R.id.newtv2SiteEntry);
+        if (site != null) site.setOnClickListener(view -> showDialog());
+        View home = findViewById(R.id.newtv2NavHome);
+        if (home != null) home.setSelected(true);
+    }
+
+    private void bindNewTV2Navigation(int id, Runnable action) {
+        View view = findViewById(id);
+        if (view == null) return;
+        view.setOnClickListener(v -> action.run());
     }
 
     private void setAdapter() {
         mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
-        mAdapter.add(new ListRow(mFuncAdapter = new ArrayObjectAdapter(new FuncPresenter(this))));
+        mFuncAdapter = new ArrayObjectAdapter(new FuncPresenter(this));
+        if (!Setting.isNewTV2Theme()) mAdapter.add(new ListRow(mFuncAdapter));
         mAdapter.add(R.string.home_history);
         mAdapter.add(R.string.home_recommend);
     }
@@ -284,6 +340,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void setFocus() {
+        if (Setting.isNewTV2Theme()) {
+            View navHome = findViewById(R.id.newtv2NavHome);
+            if (navHome != null && navHome.requestFocus()) return;
+        }
         mBinding.title.setSelected(true);
         App.post(() -> mBinding.title.setFocusable(true), 500);
         if (!mBinding.title.hasFocus()) mBinding.recycler.requestFocus();
