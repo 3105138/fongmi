@@ -11,23 +11,29 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/newtv2HeroBackdrop"
+        android:layout_width="match_parent"
+        android:layout_height="780dp"
+        android:layout_gravity="top"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_newtv2_hero"
+        android:contentDescription="@null" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="780dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_newtv2_backdrop_scrim"
+        android:clickable="false"
+        android:focusable="false" />
+
     <FrameLayout
         android:id="@+id/newtv2Hero"
         android:layout_width="match_parent"
         android:layout_height="440dp"
-        android:background="@drawable/bg_newtv2_hero"
+        android:background="@android:color/transparent"
         android:clipChildren="false">
-
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/newtv2HeroPoster"
-            android:layout_width="236dp"
-            android:layout_height="315dp"
-            android:layout_gravity="end|center_vertical"
-            android:layout_marginEnd="76dp"
-            android:background="@drawable/bg_newtv2_poster"
-            android:clipToOutline="true"
-            android:scaleType="fitCenter"
-            android:visibility="gone" />
 
         <View
             android:layout_width="match_parent"
@@ -53,6 +59,15 @@
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
 
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/newtv2HeroLogo"
+                android:layout_width="wrap_content"
+                android:layout_height="96dp"
+                android:layout_marginTop="10dp"
+                android:maxWidth="420dp"
+                android:scaleType="fitCenter"
+                android:visibility="gone" />
+
             <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/newtv2HeroTitle"
                 android:layout_width="match_parent"
@@ -72,7 +87,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:ellipsize="end"
-                android:maxLines="2"
+                android:maxLines="3"
                 android:text="@string/newtv2_hero_subtitle"
                 android:textColor="#B8C0CC"
                 android:textSize="16sp"

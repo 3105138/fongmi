@@ -39,4 +39,8 @@
     <string name="newtv2_hero_subtitle">来自当前点播配置源</string>
     <string name="newtv2_nav_live">直播</string>
     <string name="newtv2_nav_connect">投屏</string>
+    <string name="newtv2_board_douban_movie">豆瓣热门电影</string>
+    <string name="newtv2_board_douban_series">豆瓣热门剧集</string>
+    <string name="newtv2_board_tmdb_movie">TMDB今日电影</string>
+    <string name="newtv2_board_tmdb_tv">TMDB今日剧集</string>
 </resources>

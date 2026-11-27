@@ -5,6 +5,9 @@ import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -75,7 +78,13 @@ import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
+import com.fongmi.android.tv.utils.NewTV2HomeData;
 import com.github.catvod.net.OkHttp;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.common.collect.Lists;
 
 import org.greenrobot.eventbus.Subscribe;
@@ -106,6 +115,25 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private boolean actionReady;
     private Result mResult;
     private Clock mClock;
+
+    private final Handler mNewTV2HeroHandler = new Handler(Looper.getMainLooper());
+    private final List<NewTV2HomeData.HeroItem> mNewTV2Heroes = new ArrayList<>();
+    private boolean mNewTV2HomeActive;
+    private int mNewTV2HeroIndex;
+    private final Runnable mNewTV2HeroCycle = new Runnable() {
+        @Override public void run() {
+            if (mBinding == null || !mNewTV2HomeActive || !Setting.isNewTV2Theme() || isFinishing() || isDestroyed() || mNewTV2Heroes.isEmpty()) return;
+            mNewTV2HeroIndex = (mNewTV2HeroIndex + 1) % mNewTV2Heroes.size();
+            showNewTV2Hero(mNewTV2Heroes.get(mNewTV2HeroIndex));
+            mNewTV2HeroHandler.postDelayed(this, 7000L);
+        }
+    };
+    private final ArrayObjectAdapter[] mNewTV2BoardAdapters = new ArrayObjectAdapter[4];
+    private final boolean[] mNewTV2BoardRowsAdded = new boolean[4];
+    private static final int[] NEWTV2_BOARD_TITLES = {
+            R.string.newtv2_board_douban_movie, R.string.newtv2_board_douban_series,
+            R.string.newtv2_board_tmdb_movie, R.string.newtv2_board_tmdb_tv
+    };
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -223,20 +251,79 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         Cache.clear().put(result);
     }
 
-    /** Use the current configured source's first item as the featured NewTV2-style artwork. */
+    /** Config-source artwork is a fallback only; the featured hero normally uses TMDB backdrop art. */
     private void updateNewTV2Hero(Result result) {
-        if (!Setting.isNewTV2Theme() || result == null || result.getList().isEmpty()) return;
+        if (!Setting.isNewTV2Theme() || !mNewTV2Heroes.isEmpty() || result == null || result.getList().isEmpty()) return;
         Vod item = result.getList().get(0);
-        ImageView poster = findViewById(R.id.newtv2HeroPoster);
+        ImageView backdrop = findViewById(R.id.newtv2HeroBackdrop);
+        ImageView logo = findViewById(R.id.newtv2HeroLogo);
         TextView title = findViewById(R.id.newtv2HeroTitle);
         TextView remark = findViewById(R.id.newtv2HeroRemark);
-        if (poster == null || title == null || remark == null) return;
-        poster.setVisibility(View.VISIBLE);
-        ImgUtil.load(item.getName(), item.getPic(), poster, false);
+        if (backdrop == null || title == null || remark == null) return;
+        Glide.with(this).load(item.getPic()).centerCrop().into(backdrop);
+        if (logo != null) logo.setVisibility(View.GONE);
+        title.setVisibility(View.VISIBLE);
         title.setText(item.getName());
         String value = item.getRemarks();
         if (TextUtils.isEmpty(value)) remark.setText(R.string.newtv2_hero_subtitle);
         else remark.setText(value);
+    }
+
+    private void loadNewTV2HomeData() {
+        if (!Setting.isNewTV2Theme()) return;
+        NewTV2HomeData.loadHero(items -> {
+            if (!Setting.isNewTV2Theme() || items == null || items.isEmpty()) return;
+            mNewTV2Heroes.clear(); mNewTV2Heroes.addAll(items); mNewTV2HeroIndex = 0;
+            showNewTV2Hero(mNewTV2Heroes.get(0));
+            mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
+            if (mNewTV2HomeActive) mNewTV2HeroHandler.postDelayed(mNewTV2HeroCycle, 7000L);
+        });
+        for (int board=0; board<NEWTV2_BOARD_TITLES.length; board++) {
+            final int index=board;
+            NewTV2HomeData.loadBoard(index, items -> updateNewTV2Board(index, items));
+        }
+    }
+
+    private void showNewTV2Hero(NewTV2HomeData.HeroItem item) {
+        if (item == null || !Setting.isNewTV2Theme()) return;
+        ImageView backdrop=findViewById(R.id.newtv2HeroBackdrop), logo=findViewById(R.id.newtv2HeroLogo);
+        TextView title=findViewById(R.id.newtv2HeroTitle), remark=findViewById(R.id.newtv2HeroRemark);
+        if(backdrop==null||title==null||remark==null)return;
+        String path=TextUtils.isEmpty(item.getBackdrop())?item.getPoster():item.getBackdrop();
+        if(!TextUtils.isEmpty(path)) Glide.with(this).load(NewTV2HomeData.proxyImage(path,"w1280"))
+                .error(NewTV2HomeData.officialImage(path,"w1280")).centerCrop()
+                .transition(DrawableTransitionOptions.withCrossFade(600)).into(backdrop);
+        title.setVisibility(View.VISIBLE);title.setText(item.getTitle());
+        if(logo!=null){
+            logo.setVisibility(View.GONE);
+            if(!TextUtils.isEmpty(item.getLogo())) Glide.with(this).load(NewTV2HomeData.proxyImage(item.getLogo(),"original"))
+                    .error(NewTV2HomeData.officialImage(item.getLogo(),"original")).centerInside()
+                    .transition(DrawableTransitionOptions.withCrossFade(250)).listener(new RequestListener<Drawable>() {
+                @Override public boolean onLoadFailed(@Nullable GlideException e,Object model,@NonNull Target<Drawable> target,boolean first){title.setVisibility(View.VISIBLE);logo.setVisibility(View.GONE);return false;}
+                @Override public boolean onResourceReady(@NonNull Drawable resource,Object model,@Nullable Target<Drawable> target,@NonNull com.bumptech.glide.load.DataSource source,boolean first){title.setVisibility(View.GONE);logo.setVisibility(View.VISIBLE);return false;}
+            }).into(logo);
+        }
+        StringBuilder text=new StringBuilder();
+        if(!TextUtils.isEmpty(item.getYear()))text.append(item.getYear());
+        if(!TextUtils.isEmpty(item.getGenre())){if(text.length()>0)text.append("  ·  ");text.append(item.getGenre());}
+        if(!TextUtils.isEmpty(item.getRating())){if(text.length()>0)text.append("  ·  ");text.append("TMDB ").append(item.getRating());}
+        if(!TextUtils.isEmpty(item.getDescription())){if(text.length()>0)text.append("\n");text.append(item.getDescription());}
+        if(text.length()==0)remark.setText(R.string.newtv2_hero_subtitle);else remark.setText(text.toString());
+    }
+
+    private void updateNewTV2Board(int board,List<NewTV2HomeData.BoardItem> items) {
+        if(!Setting.isNewTV2Theme()||items==null||items.isEmpty()||mAdapter==null)return;
+        ArrayObjectAdapter cards=mNewTV2BoardAdapters[board];
+        if(cards==null)cards=new ArrayObjectAdapter(new VodPresenter(this,Style.rect()));
+        List<Vod> vods=new ArrayList<>(items.size());
+        for(NewTV2HomeData.BoardItem item:items){Vod v=new Vod();v.setName(item.getTitle());v.setPic(item.getPoster());v.setRemarks(item.getRating());v.setYear(item.getYear());vods.add(v);}
+        cards.setItems(vods,new BaseDiffCallback<Vod>());
+        if(!mNewTV2BoardRowsAdded[board]){
+            int position=mAdapter.indexOf(R.string.home_recommend);
+            mAdapter.add(position,NEWTV2_BOARD_TITLES[board]);
+            mAdapter.add(position+1,new ListRow(cards));
+            mNewTV2BoardAdapters[board]=cards;mNewTV2BoardRowsAdded[board]=true;
+        }else mNewTV2BoardAdapters[board]=cards;
     }
 
     /** NewTV2-style navigation reuses the existing FongMi destinations and data. */
@@ -282,6 +369,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         initConfig();
         setTitle();
         setLogo();
+        loadNewTV2HomeData();
     }
 
     private void setTitle() {
@@ -576,11 +664,18 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void onResume() {
         super.onResume();
+        mNewTV2HomeActive = true;
+        if (Setting.isNewTV2Theme() && !mNewTV2Heroes.isEmpty()) {
+            mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
+            mNewTV2HeroHandler.postDelayed(mNewTV2HeroCycle, 7000L);
+        }
         mClock.start();
     }
 
     @Override
     protected void onPause() {
+        mNewTV2HomeActive = false;
+        mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
         super.onPause();
         mClock.stop();
     }
@@ -601,6 +696,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void onDestroy() {
+        mNewTV2HomeActive = false;
+        mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
         if (--instanceCount == 0 && !isChangingConfigurations()) {
             BackupManager.backup();
             releaseResources();

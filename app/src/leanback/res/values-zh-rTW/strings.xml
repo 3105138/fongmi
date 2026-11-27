@@ -20,4 +20,20 @@
     <string name="dialog_action_grid">切換為網格</string>
     <string name="dialog_action_list">切換為列表</string>
 
+    <string name="setting_home_theme">首頁主題風格</string>
+    <string name="setting_theme_original">原版風格</string>
+    <string name="setting_theme_newtv2">NewTV2 風格</string>
+    <string name="newtv2_nav_home">首頁</string>
+    <string name="newtv2_nav_vod">片庫</string>
+    <string name="newtv2_nav_search">搜尋</string>
+    <string name="newtv2_nav_keep">收藏</string>
+    <string name="newtv2_nav_setting">設定</string>
+    <string name="newtv2_hero_label">精選推薦</string>
+    <string name="newtv2_hero_subtitle">來自目前點播配置源</string>
+    <string name="newtv2_nav_live">直播</string>
+    <string name="newtv2_nav_connect">投屏</string>
+    <string name="newtv2_board_douban_movie">豆瓣熱門電影</string>
+    <string name="newtv2_board_douban_series">豆瓣熱門劇集</string>
+    <string name="newtv2_board_tmdb_movie">TMDB今日電影</string>
+    <string name="newtv2_board_tmdb_tv">TMDB今日劇集</string>
 </resources>

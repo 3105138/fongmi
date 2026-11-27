@@ -39,4 +39,8 @@
     <string name="newtv2_hero_subtitle">From your current video source</string>
     <string name="newtv2_nav_live">Live</string>
     <string name="newtv2_nav_connect">Cast</string>
+    <string name="newtv2_board_douban_movie">Douban Movies</string>
+    <string name="newtv2_board_douban_series">Douban TV</string>
+    <string name="newtv2_board_tmdb_movie">TMDB Movies Today</string>
+    <string name="newtv2_board_tmdb_tv">TMDB TV Today</string>
 </resources>
