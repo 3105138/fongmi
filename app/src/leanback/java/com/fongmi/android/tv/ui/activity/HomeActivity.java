@@ -254,8 +254,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         View live = findViewById(R.id.newtv2NavLive);
         if (live != null) live.setVisibility(LiveConfig.hasUrl() ? View.VISIBLE : View.GONE);
         PosterFocusAnimator.bind(mBinding.title, false);
-        View site = findViewById(R.id.newtv2SiteEntry);
-        if (site != null) site.setOnClickListener(view -> showDialog());
         View home = findViewById(R.id.newtv2NavHome);
         if (home != null) home.setSelected(true);
     }
