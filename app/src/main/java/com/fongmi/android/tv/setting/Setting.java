@@ -22,11 +22,12 @@ public class Setting {
     }
 
     public static int getHomeTheme() {
-        return Math.clamp(Prefers.getInt("home_theme", HOME_THEME_ORIGINAL), HOME_THEME_ORIGINAL, HOME_THEME_NEWTV2);
+        return Math.max(HOME_THEME_ORIGINAL, Math.min(HOME_THEME_NEWTV2,
+                Prefers.getInt("home_theme", HOME_THEME_ORIGINAL)));
     }
 
     public static void putHomeTheme(int theme) {
-        Prefers.put("home_theme", Math.clamp(theme, HOME_THEME_ORIGINAL, HOME_THEME_NEWTV2));
+        Prefers.put("home_theme", Math.max(HOME_THEME_ORIGINAL, Math.min(HOME_THEME_NEWTV2, theme)));
     }
 
     public static boolean isNewTV2Theme() {
