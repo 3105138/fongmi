@@ -1,5 +1,5 @@
 
-name: Build FongMi 5.8.8 APK (reuse successful MPV artifacts)
+name: Build FongMi 5.8.9 TV APK (reuse successful MPV artifacts)
 
 on:
   push:
@@ -12,14 +12,12 @@ on:
   workflow_dispatch:
     inputs:
       edition:
-        description: Select APK version
+        description: Build TV (Leanback) APK only
         required: true
-        default: all
+        default: leanback
         type: choice
         options:
           - leanback
-          - mobile
-          - all
 
 permissions:
   contents: read
@@ -83,7 +81,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
-      - name: Checkout FongMi 5.8.8
+      - name: Checkout FongMi 5.8.9
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
@@ -410,33 +408,15 @@ jobs:
 
           ./gradlew \
             :app:verifyLeanbackReleaseMpvNative \
-            :app:verifyMobileReleaseMpvNative \
             --no-daemon \
             --stacktrace
 
-      - name: Build FongMi 5.8.8 APK
+      - name: Build FongMi 5.8.9 TV APK (Leanback only)
         shell: bash
-        env:
-          EDITION: ${{ inputs.edition || 'all' }}
         run: |
           set -euo pipefail
-
-          case "$EDITION" in
-            leanback)
-              ./gradlew :app:assembleLeanbackRelease \
-                --no-daemon --stacktrace
-              ;;
-            mobile)
-              ./gradlew :app:assembleMobileRelease \
-                --no-daemon --stacktrace
-              ;;
-            all)
-              ./gradlew \
-                :app:assembleLeanbackRelease \
-                :app:assembleMobileRelease \
-                --no-daemon --stacktrace
-              ;;
-          esac
+          ./gradlew :app:assembleLeanbackRelease \
+            --no-daemon --stacktrace
 
       - name: Collect APK
         if: success()
@@ -458,7 +438,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.8-${{ inputs.edition || 'all' }}
+          name: FongMi-5.8.9-TV-Leanback
           path: output/*.apk
           if-no-files-found: error
 
@@ -466,7 +446,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: FongMi-5.8.8-diagnostics
+          name: FongMi-5.8.9-TV-diagnostics
           path: |
             native-elf-check/
             official-media3/libraries/mpvplayer/buildout/outputs/
