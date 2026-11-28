@@ -36,6 +36,7 @@ public class CoverTopImageView extends ShapeableImageView {
     private static final String TAG = "CoverTop";
 
     private final Matrix matrix = new Matrix();
+    private boolean fitInside;
 
     public CoverTopImageView(@NonNull Context context) {
         this(context, null);
@@ -48,6 +49,13 @@ public class CoverTopImageView extends ShapeableImageView {
     public CoverTopImageView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         setScaleType(ScaleType.MATRIX);
+    }
+
+    /** Display the full source poster inside the horizontal frame, without cutting off its top or bottom. */
+    public void setFitInside(boolean fitInside) {
+        if (this.fitInside == fitInside) return;
+        this.fitInside = fitInside;
+        applyMatrix();
     }
 
     @Override
@@ -74,11 +82,14 @@ public class CoverTopImageView extends ShapeableImageView {
             Log.i(TAG, "skip: view=" + viewWidth + "x" + viewHeight + " drawable=" + width + "x" + height);
             return;
         }
-        // 铺满：取两个方向里更大的缩放比；顶部贴齐：纵向不偏移（多出的部分全部落在下沿被裁掉）
-        float scale = Math.max((float) viewWidth / width, (float) viewHeight / height);
+        // TMDB 横版剧照铺满；站源竖版海报回退时完整适配，避免裁掉主体。
+        float scale = fitInside
+                ? Math.min((float) viewWidth / width, (float) viewHeight / height)
+                : Math.max((float) viewWidth / width, (float) viewHeight / height);
         float dx = (viewWidth - width * scale) / 2f;
+        float dy = fitInside ? (viewHeight - height * scale) / 2f : 0f;
         matrix.setScale(scale, scale);
-        matrix.postTranslate(dx + getPaddingLeft(), getPaddingTop());
+        matrix.postTranslate(dx + getPaddingLeft(), dy + getPaddingTop());
         setImageMatrix(matrix);
         Log.i(TAG, "apply: view=" + viewWidth + "x" + viewHeight + " drawable=" + width + "x" + height
                 + " scale=" + scale + " dx=" + dx + " visibleH=" + Math.round(viewHeight / scale) + "/" + height);

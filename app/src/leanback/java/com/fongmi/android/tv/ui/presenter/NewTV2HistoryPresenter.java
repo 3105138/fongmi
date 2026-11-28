@@ -113,6 +113,7 @@ public final class NewTV2HistoryPresenter extends HistoryPresenter {
 
     private void loadBackdrop(Holder holder, TmdbArt art) {
         if (art == null || !art.hasBackdrop()) return;
+        holder.binding.image.setFitInside(false);
         Glide.with(holder.binding.image)
                 .load(art.getBackdropFile())
                 .dontTransform()
@@ -121,6 +122,7 @@ public final class NewTV2HistoryPresenter extends HistoryPresenter {
     }
 
     private void loadPoster(Holder holder, String url) {
+        holder.binding.image.setFitInside(true);
         if (TextUtils.isEmpty(url)) {
             Glide.with(holder.binding.image).clear(holder.binding.image);
             holder.binding.image.setImageDrawable(null);
