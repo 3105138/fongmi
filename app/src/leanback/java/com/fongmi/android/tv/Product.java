@@ -18,6 +18,12 @@ public class Product {
         return style.isLand() ? getColumn() - 1 : getColumn();
     }
 
+    /** NewTV2 recent-history artwork: fixed 16:9 landscape frame, independent of poster-size setting. */
+    public static int[] getHistorySpec() {
+        int height = Math.max(1, ResUtil.dp2px(90));
+        return new int[]{Math.max(1, Math.round(height * 16f / 9f)), height};
+    }
+
     public static int[] getSpec(Style style) {
         int column = getColumn(style);
         int space = ResUtil.dp2px(48) + ResUtil.dp2px(16 * (column - 1));

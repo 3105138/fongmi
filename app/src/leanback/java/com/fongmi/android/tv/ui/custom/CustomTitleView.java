@@ -25,6 +25,7 @@ public class CustomTitleView extends MaterialTextView {
     private Listener listener;
     private Animation flicker;
     private boolean coolDown;
+    private boolean cycleOnArrow = true;
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -44,8 +45,13 @@ public class CustomTitleView extends MaterialTextView {
         setOnClickListener(v -> listener.showDialog());
     }
 
+    /** NewTV2 behavior: DPAD arrows navigate; OK opens the site picker. */
+    public void setCycleOnArrow(boolean enabled) {
+        cycleOnArrow = enabled;
+    }
+
     private boolean hasEvent(KeyEvent event) {
-        return !getHome().isEmpty() && (KeyUtil.isLeftKey(event) || KeyUtil.isRightKey(event) || (KeyUtil.isUpKey(event) && !coolDown));
+        return cycleOnArrow && !getHome().isEmpty() && (KeyUtil.isLeftKey(event) || KeyUtil.isRightKey(event) || (KeyUtil.isUpKey(event) && !coolDown));
     }
 
     @Override

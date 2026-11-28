@@ -8,6 +8,7 @@ import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -18,6 +19,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.leanback.widget.Presenter;
+
+import java.util.function.IntConsumer;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.GlideException;
@@ -36,9 +39,11 @@ public final class NewTV2HeroPresenter extends Presenter {
 
     private static final int HERO_HEIGHT_DP = 440;
     private final OnClickListener listener;
+    private final IntConsumer navigation;
 
-    public NewTV2HeroPresenter(OnClickListener listener) {
+    public NewTV2HeroPresenter(OnClickListener listener, IntConsumer navigation) {
         this.listener = listener;
+        this.navigation = navigation;
     }
 
     @NonNull
@@ -130,6 +135,18 @@ public final class NewTV2HeroPresenter extends Presenter {
 
         HeroHolder holder = new HeroHolder(root, logo, title, meta, overview, action);
         root.setOnFocusChangeListener((view, focused) -> styleAction(holder, focused));
+        root.setOnKeyListener((view, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN || navigation == null) return false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                navigation.accept(-1);
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                navigation.accept(1);
+                return true;
+            }
+            return false;
+        });
         root.setOnClickListener(view -> {
             if (holder.item != null && listener != null) listener.onClick(holder.item);
         });

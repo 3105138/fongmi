@@ -70,6 +70,7 @@ import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.presenter.FuncPresenter;
 import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
 import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
+import com.fongmi.android.tv.ui.presenter.NewTV2HistoryPresenter;
 import com.fongmi.android.tv.ui.presenter.NewTV2HeroPresenter;
 import com.fongmi.android.tv.ui.presenter.ProgressPresenter;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
@@ -234,7 +235,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         selector.addPresenter(Integer.class, new HeaderPresenter());
         selector.addPresenter(String.class, new ProgressPresenter());
         if (Setting.isNewTV2Theme()) {
-            mNewTV2HeroPresenter = new NewTV2HeroPresenter(this::onNewTV2HeroClick);
+            mNewTV2HeroPresenter = new NewTV2HeroPresenter(this::onNewTV2HeroClick, this::navigateNewTV2Hero);
             selector.addPresenter(NewTV2HeroRow.class, mNewTV2HeroPresenter);
         }
         selector.addPresenter(Vod.class, new VodPresenter(this, Style.list()));
@@ -242,7 +243,11 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         int historyScroll = Setting.isNewTV2Theme() ? HorizontalGridView.FOCUS_SCROLL_ITEM : HorizontalGridView.FOCUS_SCROLL_ALIGNED;
         selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom), VodPresenter.class);
         selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom), FuncPresenter.class);
-        selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom, historyScroll), HistoryPresenter.class);
+        if (Setting.isNewTV2Theme()) {
+            selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom, historyScroll), NewTV2HistoryPresenter.class);
+        } else {
+            selector.addPresenter(ListRow.class, new CustomRowPresenter(16, rowZoom, historyScroll), HistoryPresenter.class);
+        }
         mBinding.recycler.setAdapter(new ItemBridgeAdapter(mAdapter = new ArrayObjectAdapter(selector)));
         mBinding.recycler.setVerticalSpacing(ResUtil.dp2px(16));
     }
@@ -309,6 +314,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (item != null && !TextUtils.isEmpty(item.getTitle())) SearchActivity.start(this, item.getTitle());
     }
 
+    /** NewTV2 carousel control: left/right on the hero row changes the featured title. */
+    private void navigateNewTV2Hero(int direction) {
+        if (mNewTV2Heroes.size() < 2) return;
+        mNewTV2HeroIndex = (mNewTV2HeroIndex + direction + mNewTV2Heroes.size()) % mNewTV2Heroes.size();
+        showNewTV2Hero(mNewTV2Heroes.get(mNewTV2HeroIndex));
+        mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
+        if (mNewTV2HomeActive) mNewTV2HeroHandler.postDelayed(mNewTV2HeroCycle, 7000L);
+    }
+
     private void updateNewTV2BackdropVisibility(int position) {
         View layer = findViewById(R.id.newtv2BackdropLayer);
         if (layer == null) return;
@@ -350,6 +364,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         bindNewTV2Navigation(R.id.newtv2NavSetting, () -> SettingActivity.start(this));
         updateNewTV2NavigationAvailability();
         PosterFocusAnimator.bind(mBinding.title, false);
+        mBinding.title.setCycleOnArrow(false);
         View home = findViewById(R.id.newtv2NavHome);
         if (home != null) home.setSelected(true);
     }
@@ -361,8 +376,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         PosterFocusAnimator.bind(view, false);
     }
 
+    private HistoryPresenter createHistoryPresenter() {
+        return Setting.isNewTV2Theme() ? new NewTV2HistoryPresenter(this) : new HistoryPresenter(this);
+    }
+
     private void setAdapter() {
-        mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
+        mHistoryAdapter = new ArrayObjectAdapter(mPresenter = createHistoryPresenter());
         mFuncAdapter = new ArrayObjectAdapter(new FuncPresenter(this));
         if (Setting.isNewTV2Theme()) {
             mNewTV2HeroRow = new NewTV2HeroRow();
@@ -514,7 +533,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         int historyIndex = getHistoryIndex();
         int recommendIndex = getRecommendIndex();
         boolean exist = recommendIndex - historyIndex == 2;
-        if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
+        if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = createHistoryPresenter());
         if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
         if ((!items.isEmpty() && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
         mHistoryAdapter.setItems(items, new BaseDiffCallback<History>());
