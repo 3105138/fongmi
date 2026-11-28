@@ -306,25 +306,6 @@ public final class NewTV2HeroPresenter extends Presenter {
         return TmdbStore.logoBitmap(art.getLogo());
     }
 
-    private static void bindLogo(HeroHolder holder, Bitmap bitmap) {
-        float ratio = bitmap.getWidth() / (float) Math.max(1, bitmap.getHeight());
-        int heightDp = ratio < (1f / 1.6f) ? 200 : ratio <= 1f ? 120 : 80;
-        int available = holder.view.getResources().getDisplayMetrics().widthPixels - dp(holder.view.getContext(), 96);
-        int maxWidth = Math.max(1, Math.min(dp(holder.view.getContext(), 300), available));
-        int height = dp(holder.view.getContext(), heightDp);
-        int width = Math.max(1, Math.round(height * ratio));
-        if (width > maxWidth) {
-            width = maxWidth;
-            height = Math.max(1, Math.round(width / Math.max(ratio, 0.01f)));
-        }
-        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) holder.logo.getLayoutParams();
-        params.width = width;
-        params.height = height;
-        holder.logo.setLayoutParams(params);
-        holder.logo.setImageBitmap(bitmap);
-        holder.logo.setVisibility(View.VISIBLE);
-        holder.title.setVisibility(View.GONE);
-    }
 
     private static void styleAction(HeroHolder holder, boolean focused) {
         GradientDrawable background = new GradientDrawable();
