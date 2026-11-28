@@ -205,7 +205,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mBinding.recycler.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
-                mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+                if (Setting.isNewTV2Theme()) mBinding.toolbar.setVisibility(View.VISIBLE); else mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
                 if (Setting.isNewTV2Theme()) updateNewTV2BackdropVisibility(position);
                 if (mPresenter.isDelete()) setHistoryDelete(false);
             }

@@ -86,7 +86,7 @@
             android:focusable="true"
             android:gravity="center"
             android:minWidth="64dp"
-            android:nextFocusDown="@id/recycler"
+            android:nextFocusDown="@id/newtv2HeroRow"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:text="@string/newtv2_nav_home"

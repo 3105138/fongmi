@@ -51,6 +51,8 @@ public final class NewTV2HeroPresenter extends Presenter {
         root.setClipChildren(false);
         root.setFocusable(true);
         root.setFocusableInTouchMode(true);
+        root.setId(R.id.newtv2HeroRow);
+        root.setNextFocusUpId(R.id.newtv2NavHome);
         root.setClickable(true);
 
         LinearLayout details = new LinearLayout(context);
