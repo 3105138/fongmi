@@ -43,10 +43,11 @@
             android:id="@+id/delete"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/shape_vod_delete"
+            android:background="@color/black_50"
             android:scaleType="center"
             android:src="@drawable/ic_vod_delete"
             android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/Vod.Grid.Large"
             tools:visibility="visible" />
 
     </FrameLayout>
