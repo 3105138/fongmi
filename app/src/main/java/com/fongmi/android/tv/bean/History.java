@@ -105,7 +105,8 @@ public class History implements Diffable<History> {
             String name = TextUtils.isEmpty(item.getVodName()) ? item.getKey() : item.getVodName().trim();
             String key = TmdbStore.normalize(name);
             if (TextUtils.isEmpty(key)) key = item.getKey();
-            if (unique.putIfAbsent(key, item) != null) duplicates.add(item);
+            if (unique.containsKey(key)) duplicates.add(item);
+            else unique.put(key, item);
         }
         // Query order is newest-first: keep the latest progress and remove stale copies from other sources.
         if (!duplicates.isEmpty()) Task.executeSerial(() -> duplicates.forEach(History::delete));
