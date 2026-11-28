@@ -25,6 +25,7 @@ import java.util.function.IntConsumer;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.fongmi.android.tv.R;
@@ -93,8 +94,10 @@ public final class NewTV2HeroPresenter extends Presenter {
 
         TextView title = new TextView(context);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 42);
-        title.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 46);
+        title.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
+        title.setLetterSpacing(-0.02f);
+        title.setShadowLayer(dp(context, 2), 0f, dp(context, 1), 0x66000000);
         title.setIncludeFontPadding(false);
         title.setMaxLines(2);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
@@ -201,30 +204,7 @@ public final class NewTV2HeroPresenter extends Presenter {
             holder.overview.setVisibility(View.VISIBLE);
         }
 
-        if (localLogo == null && !TextUtils.isEmpty(data.getLogo())) {
-            String logo = NewTV2HomeData.proxyImage(data.getLogo(), "original");
-            String fallback = NewTV2HomeData.officialImage(data.getLogo(), "original");
-            Glide.with(holder.logo).load(logo).error(Glide.with(holder.logo).load(fallback))
-                    .fitCenter().listener(new RequestListener<Drawable>() {
-                @Override
-                public boolean onLoadFailed(@Nullable GlideException e, Object model,
-                                            @NonNull Target<Drawable> target, boolean first) {
-                    holder.logo.setVisibility(View.GONE);
-                    holder.title.setVisibility(View.VISIBLE);
-                    return false;
-                }
-
-                @Override
-                public boolean onResourceReady(@NonNull Drawable resource, Object model,
-                                               @NonNull Target<Drawable> target,
-                                               @Nullable com.bumptech.glide.load.DataSource source,
-                                               boolean first) {
-                    holder.title.setVisibility(View.GONE);
-                    holder.logo.setVisibility(View.VISIBLE);
-                    return false;
-                }
-            }).into(holder.logo);
-        }
+        if (localLogo == null && !TextUtils.isEmpty(data.getLogo())) loadRemoteLogo(holder, data, false);
     }
 
     @Override
@@ -233,6 +213,91 @@ public final class NewTV2HeroPresenter extends Presenter {
         holder.item = null;
         Glide.with(holder.logo).clear(holder.logo);
         holder.logo.setImageDrawable(null);
+    }
+
+    /** Load NewTV2's transparent original-size title logo: configured image proxy first, official TMDB fallback second. */
+    private void loadRemoteLogo(HeroHolder holder, NewTV2HomeData.HeroItem item, boolean official) {
+        String path = item.getLogo();
+        String url = official ? NewTV2HomeData.officialImage(path, "original")
+                : NewTV2HomeData.proxyImage(path, "original");
+        if (TextUtils.isEmpty(url)) {
+            holder.logo.setVisibility(View.GONE);
+            holder.title.setVisibility(View.VISIBLE);
+            return;
+        }
+        Glide.with(holder.logo).load(url)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .override(Target.SIZE_ORIGINAL)
+                .dontAnimate()
+                .fitCenter()
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model,
+                                                @NonNull Target<Drawable> target, boolean first) {
+                        if (holder.item == null || !TextUtils.equals(holder.item.getTitle(), item.getTitle())) return true;
+                        String fallback = NewTV2HomeData.officialImage(path, "original");
+                        if (!official && !TextUtils.isEmpty(fallback) && !fallback.equals(url)) {
+                            loadRemoteLogo(holder, item, true);
+                        } else {
+                            holder.logo.setVisibility(View.GONE);
+                            holder.title.setVisibility(View.VISIBLE);
+                        }
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(@NonNull Drawable resource, Object model,
+                                                   @NonNull Target<Drawable> target,
+                                                   @Nullable com.bumptech.glide.load.DataSource source,
+                                                   boolean first) {
+                        if (holder.item == null || !TextUtils.equals(holder.item.getTitle(), item.getTitle())) return true;
+                        bindLogo(holder, resource);
+                        return true;
+                    }
+                }).into(holder.logo);
+    }
+
+    private static void bindLogo(HeroHolder holder, Drawable drawable) {
+        int width = drawable.getIntrinsicWidth();
+        int height = drawable.getIntrinsicHeight();
+        if (width <= 0 || height <= 0) {
+            holder.logo.setVisibility(View.GONE);
+            holder.title.setVisibility(View.VISIBLE);
+            return;
+        }
+        applyLogoSize(holder, width, height);
+        holder.logo.setImageDrawable(drawable);
+        holder.logo.setVisibility(View.VISIBLE);
+        holder.title.setVisibility(View.GONE);
+    }
+
+    private static void bindLogo(HeroHolder holder, Bitmap bitmap) {
+        if (bitmap == null || bitmap.isRecycled()) {
+            holder.logo.setVisibility(View.GONE);
+            holder.title.setVisibility(View.VISIBLE);
+            return;
+        }
+        applyLogoSize(holder, bitmap.getWidth(), bitmap.getHeight());
+        holder.logo.setImageBitmap(bitmap);
+        holder.logo.setVisibility(View.VISIBLE);
+        holder.title.setVisibility(View.GONE);
+    }
+
+    private static void applyLogoSize(HeroHolder holder, int sourceWidth, int sourceHeight) {
+        float ratio = sourceWidth / (float) Math.max(1, sourceHeight);
+        int heightDp = ratio < (1f / 1.6f) ? 200 : ratio <= 1f ? 120 : 80;
+        int available = holder.view.getResources().getDisplayMetrics().widthPixels - dp(holder.view.getContext(), 96);
+        int maxWidth = Math.max(1, Math.min(dp(holder.view.getContext(), 300), available));
+        int height = dp(holder.view.getContext(), heightDp);
+        int width = Math.max(1, Math.round(height * ratio));
+        if (width > maxWidth) {
+            width = maxWidth;
+            height = Math.max(1, Math.round(width / Math.max(ratio, 0.01f)));
+        }
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) holder.logo.getLayoutParams();
+        params.width = width;
+        params.height = height;
+        holder.logo.setLayoutParams(params);
     }
 
     private static Bitmap findLogo(String title) {
