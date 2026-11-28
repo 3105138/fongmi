@@ -48,6 +48,7 @@ public class VodHistoryPolicy {
             copy.merge();
             if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
+            if (Setting.isNewTV2Theme()) copy.replaceNewTV2Duplicates();
             if (exit) RefreshEvent.history();
         });
     }
@@ -66,6 +67,7 @@ public class VodHistoryPolicy {
         Task.executeSerial(() -> {
             if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
+            if (Setting.isNewTV2Theme()) copy.replaceNewTV2Duplicates();
             if (exit) RefreshEvent.history();
         });
     }
@@ -77,6 +79,7 @@ public class VodHistoryPolicy {
         Task.executeSerial(() -> {
             if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
+            if (Setting.isNewTV2Theme()) copy.replaceNewTV2Duplicates();
             if (exit) RefreshEvent.history();
         });
     }
@@ -91,6 +94,7 @@ public class VodHistoryPolicy {
         Task.executeSerial(() -> {
             if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
+            if (Setting.isNewTV2Theme()) copy.replaceNewTV2Duplicates();
             if (refresh) RefreshEvent.history();
         });
     }

@@ -10,6 +10,7 @@ import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.api.TmdbStore;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.VodConfig;
@@ -95,15 +96,32 @@ public class History implements Diffable<History> {
         return get(VodConfig.getCid());
     }
 
-    /** NewTV2 history: one latest card per title across all configured video sources. */
+    /** NewTV2 history: one latest card per normalized title across all configured video sources. */
     public static List<History> getNewTV2() {
         List<History> items = AppDatabase.get().getHistoryDao().findSince(System.currentTimeMillis() - Constant.HISTORY_TIME);
         Map<String, History> unique = new LinkedHashMap<>();
+        List<History> duplicates = new ArrayList<>();
         for (History item : items) {
             String name = TextUtils.isEmpty(item.getVodName()) ? item.getKey() : item.getVodName().trim();
-            if (!unique.containsKey(name)) unique.put(name, item);
+            String key = TmdbStore.normalize(name);
+            if (TextUtils.isEmpty(key)) key = item.getKey();
+            if (unique.putIfAbsent(key, item) != null) duplicates.add(item);
         }
+        // Query order is newest-first: keep the latest progress and remove stale copies from other sources.
+        if (!duplicates.isEmpty()) Task.executeSerial(() -> duplicates.forEach(History::delete));
         return new ArrayList<>(unique.values());
+    }
+
+    /** Delete older records for the same normalized title after a NewTV2 progress save. */
+    public History replaceNewTV2Duplicates() {
+        String title = TmdbStore.normalize(getVodName());
+        if (TextUtils.isEmpty(title)) return this;
+        List<History> items = AppDatabase.get().getHistoryDao().findSince(System.currentTimeMillis() - Constant.HISTORY_TIME);
+        for (History item : items) {
+            if (getKey().equals(item.getKey())) continue;
+            if (title.equals(TmdbStore.normalize(item.getVodName()))) item.delete();
+        }
+        return this;
     }
 
     public static List<History> get(int cid) {
