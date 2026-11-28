@@ -40,6 +40,7 @@ import com.fongmi.android.tv.bean.Cache;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Func;
 import com.fongmi.android.tv.bean.History;
+import com.fongmi.android.tv.bean.NewTV2HeroRow;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
@@ -69,6 +70,7 @@ import com.fongmi.android.tv.ui.dialog.SiteDialog;
 import com.fongmi.android.tv.ui.presenter.FuncPresenter;
 import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
 import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
+import com.fongmi.android.tv.ui.presenter.NewTV2HeroPresenter;
 import com.fongmi.android.tv.ui.presenter.ProgressPresenter;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
 import com.fongmi.android.tv.utils.Clock;
@@ -115,6 +117,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private boolean actionReady;
     private Result mResult;
     private Clock mClock;
+    private NewTV2HeroRow mNewTV2HeroRow;
+    private NewTV2HeroPresenter mNewTV2HeroPresenter;
 
     private final Handler mNewTV2HeroHandler = new Handler(Looper.getMainLooper());
     private final List<NewTV2HomeData.HeroItem> mNewTV2Heroes = new ArrayList<>();
@@ -202,6 +206,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
                 mBinding.toolbar.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+                if (Setting.isNewTV2Theme()) updateNewTV2BackdropVisibility(position);
                 if (mPresenter.isDelete()) setHistoryDelete(false);
             }
         });
@@ -228,6 +233,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         CustomSelector selector = new CustomSelector();
         selector.addPresenter(Integer.class, new HeaderPresenter());
         selector.addPresenter(String.class, new ProgressPresenter());
+        if (Setting.isNewTV2Theme()) {
+            mNewTV2HeroPresenter = new NewTV2HeroPresenter(this::onNewTV2HeroClick);
+            selector.addPresenter(NewTV2HeroRow.class, mNewTV2HeroPresenter);
+        }
         selector.addPresenter(Vod.class, new VodPresenter(this, Style.list()));
         int rowZoom = Setting.isNewTV2Theme() ? FocusHighlight.ZOOM_FACTOR_NONE : FocusHighlight.ZOOM_FACTOR_SMALL;
         int historyScroll = Setting.isNewTV2Theme() ? HorizontalGridView.FOCUS_SCROLL_ITEM : HorizontalGridView.FOCUS_SCROLL_ALIGNED;
@@ -251,64 +260,64 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         Cache.clear().put(result);
     }
 
-    /** Config-source artwork is a fallback only; the featured hero normally uses TMDB backdrop art. */
+    /** Use the current configured source only when the TMDB-enriched feed is unavailable. */
     private void updateNewTV2Hero(Result result) {
         if (!Setting.isNewTV2Theme() || !mNewTV2Heroes.isEmpty() || result == null || result.getList().isEmpty()) return;
         Vod item = result.getList().get(0);
-        ImageView backdrop = findViewById(R.id.newtv2HeroBackdrop);
-        ImageView logo = findViewById(R.id.newtv2HeroLogo);
-        TextView title = findViewById(R.id.newtv2HeroTitle);
-        TextView remark = findViewById(R.id.newtv2HeroRemark);
-        if (backdrop == null || title == null || remark == null) return;
-        Glide.with(this).load(item.getPic()).centerCrop().into(backdrop);
-        if (logo != null) logo.setVisibility(View.GONE);
-        title.setVisibility(View.VISIBLE);
-        title.setText(item.getName());
-        String value = item.getRemarks();
-        if (TextUtils.isEmpty(value)) remark.setText(R.string.newtv2_hero_subtitle);
-        else remark.setText(value);
+        NewTV2HomeData.HeroItem fallback = new NewTV2HomeData.HeroItem(
+                item.getName(), item.getContent(), item.getYear(), item.getTypeName(),
+                item.getRemarks(), item.getPic(), "", item.getPic());
+        showNewTV2Hero(fallback);
     }
 
     private void loadNewTV2HomeData() {
         if (!Setting.isNewTV2Theme()) return;
         NewTV2HomeData.loadHero(items -> {
             if (!Setting.isNewTV2Theme() || items == null || items.isEmpty()) return;
-            mNewTV2Heroes.clear(); mNewTV2Heroes.addAll(items); mNewTV2HeroIndex = 0;
+            mNewTV2Heroes.clear();
+            mNewTV2Heroes.addAll(items);
+            mNewTV2HeroIndex = 0;
             showNewTV2Hero(mNewTV2Heroes.get(0));
             mNewTV2HeroHandler.removeCallbacks(mNewTV2HeroCycle);
             if (mNewTV2HomeActive) mNewTV2HeroHandler.postDelayed(mNewTV2HeroCycle, 7000L);
         });
-        for (int board=0; board<NEWTV2_BOARD_TITLES.length; board++) {
-            final int index=board;
+        for (int board = 0; board < NEWTV2_BOARD_TITLES.length; board++) {
+            final int index = board;
             NewTV2HomeData.loadBoard(index, items -> updateNewTV2Board(index, items));
         }
     }
 
     private void showNewTV2Hero(NewTV2HomeData.HeroItem item) {
         if (item == null || !Setting.isNewTV2Theme()) return;
-        ImageView backdrop=findViewById(R.id.newtv2HeroBackdrop), logo=findViewById(R.id.newtv2HeroLogo);
-        TextView title=findViewById(R.id.newtv2HeroTitle), remark=findViewById(R.id.newtv2HeroRemark);
-        if(backdrop==null||title==null||remark==null)return;
-        String path=TextUtils.isEmpty(item.getBackdrop())?item.getPoster():item.getBackdrop();
-        if(!TextUtils.isEmpty(path)) Glide.with(this).load(NewTV2HomeData.proxyImage(path,"w1280"))
-                .error(NewTV2HomeData.officialImage(path,"w1280")).centerCrop()
-                .transition(DrawableTransitionOptions.withCrossFade(600)).into(backdrop);
-        title.setVisibility(View.VISIBLE);title.setText(item.getTitle());
-        if(logo!=null){
-            logo.setVisibility(View.GONE);
-            if(!TextUtils.isEmpty(item.getLogo())) Glide.with(this).load(NewTV2HomeData.proxyImage(item.getLogo(),"original"))
-                    .error(NewTV2HomeData.officialImage(item.getLogo(),"original")).centerInside()
-                    .transition(DrawableTransitionOptions.withCrossFade(250)).listener(new RequestListener<Drawable>() {
-                @Override public boolean onLoadFailed(@Nullable GlideException e,Object model,@NonNull Target<Drawable> target,boolean first){title.setVisibility(View.VISIBLE);logo.setVisibility(View.GONE);return false;}
-                @Override public boolean onResourceReady(@NonNull Drawable resource,Object model,@Nullable Target<Drawable> target,@NonNull com.bumptech.glide.load.DataSource source,boolean first){title.setVisibility(View.GONE);logo.setVisibility(View.VISIBLE);return false;}
-            }).into(logo);
+        if (mNewTV2HeroRow != null && mAdapter != null) {
+            mNewTV2HeroRow.setItem(item);
+            int position = mAdapter.indexOf(mNewTV2HeroRow);
+            if (position >= 0) mAdapter.notifyArrayItemRangeChanged(position, 1);
         }
-        StringBuilder text=new StringBuilder();
-        if(!TextUtils.isEmpty(item.getYear()))text.append(item.getYear());
-        if(!TextUtils.isEmpty(item.getGenre())){if(text.length()>0)text.append("  ·  ");text.append(item.getGenre());}
-        if(!TextUtils.isEmpty(item.getRating())){if(text.length()>0)text.append("  ·  ");text.append("TMDB ").append(item.getRating());}
-        if(!TextUtils.isEmpty(item.getDescription())){if(text.length()>0)text.append("\n");text.append(item.getDescription());}
-        if(text.length()==0)remark.setText(R.string.newtv2_hero_subtitle);else remark.setText(text.toString());
+        ImageView backdrop = findViewById(R.id.newtv2HeroBackdrop);
+        if (backdrop == null) return;
+        String path = TextUtils.isEmpty(item.getBackdrop()) ? item.getPoster() : item.getBackdrop();
+        if (TextUtils.isEmpty(path)) return;
+        Glide.with(this).load(NewTV2HomeData.proxyImage(path, "w1280"))
+                .error(NewTV2HomeData.officialImage(path, "w1280"))
+                .centerCrop()
+                .transition(DrawableTransitionOptions.withCrossFade(600))
+                .into(backdrop);
+    }
+
+    private void onNewTV2HeroClick(NewTV2HomeData.HeroItem item) {
+        if (item != null && !TextUtils.isEmpty(item.getTitle())) SearchActivity.start(this, item.getTitle());
+    }
+
+    private void updateNewTV2BackdropVisibility(int position) {
+        View layer = findViewById(R.id.newtv2BackdropLayer);
+        if (layer == null) return;
+        int historyHeader = mAdapter == null ? -1 : mAdapter.indexOf(R.string.home_history);
+        int historyRow = historyHeader < 0 ? 0 : historyHeader + 1;
+        boolean visible = position <= historyRow;
+        float alpha = visible ? 1f : 0f;
+        layer.animate().cancel();
+        layer.animate().alpha(alpha).setDuration(220L).start();
     }
 
     private void updateNewTV2Board(int board,List<NewTV2HomeData.BoardItem> items) {
@@ -355,7 +364,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private void setAdapter() {
         mHistoryAdapter = new ArrayObjectAdapter(mPresenter = new HistoryPresenter(this));
         mFuncAdapter = new ArrayObjectAdapter(new FuncPresenter(this));
-        if (!Setting.isNewTV2Theme()) mAdapter.add(new ListRow(mFuncAdapter));
+        if (Setting.isNewTV2Theme()) {
+            mNewTV2HeroRow = new NewTV2HeroRow();
+            mAdapter.add(mNewTV2HeroRow);
+        } else {
+            mAdapter.add(new ListRow(mFuncAdapter));
+        }
         mAdapter.add(R.string.home_history);
         mAdapter.add(R.string.home_recommend);
     }

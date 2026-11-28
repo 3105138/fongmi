@@ -32,7 +32,7 @@ public final class NewTV2HomeData {
     public interface BoardCallback{void onResult(List<BoardItem> items);}
     public static final class HeroItem{
         private final String title,description,year,genre,rating,backdrop,logo,poster;
-        HeroItem(String t,String d,String y,String g,String r,String b,String l,String p){title=t;description=d;year=y;genre=g;rating=r;backdrop=b;logo=l;poster=p;}
+        public HeroItem(String t,String d,String y,String g,String r,String b,String l,String p){title=t;description=d;year=y;genre=g;rating=r;backdrop=b;logo=l;poster=p;}
         public String getTitle(){return title;}public String getDescription(){return description;}public String getYear(){return year;}public String getGenre(){return genre;}public String getRating(){return rating;}public String getBackdrop(){return backdrop;}public String getLogo(){return logo;}public String getPoster(){return poster;}
     }
     public static final class BoardItem{

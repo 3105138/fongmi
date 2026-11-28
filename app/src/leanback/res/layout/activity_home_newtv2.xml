@@ -11,90 +11,29 @@
         android:layout_height="match_parent"
         android:clipChildren="false">
 
-    <androidx.appcompat.widget.AppCompatImageView
-        android:id="@+id/newtv2HeroBackdrop"
-        android:layout_width="match_parent"
-        android:layout_height="780dp"
-        android:layout_gravity="top"
-        android:scaleType="centerCrop"
-        android:background="@drawable/bg_newtv2_hero"
-        android:contentDescription="@null" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="780dp"
-        android:layout_gravity="top"
-        android:background="@drawable/bg_newtv2_backdrop_scrim"
-        android:clickable="false"
-        android:focusable="false" />
-
     <FrameLayout
-        android:id="@+id/newtv2Hero"
+        android:id="@+id/newtv2BackdropLayer"
         android:layout_width="match_parent"
-        android:layout_height="440dp"
-        android:background="@android:color/transparent"
+        android:layout_height="520dp"
+        android:layout_gravity="top"
         android:clipChildren="false">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/newtv2HeroBackdrop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.58"
+            android:background="@drawable/bg_newtv2_hero"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_newtv2_hero_scrim"
+            android:background="@drawable/bg_newtv2_backdrop_scrim"
             android:clickable="false"
             android:focusable="false" />
 
-        <androidx.appcompat.widget.LinearLayoutCompat
-            android:layout_width="560dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|start"
-            android:layout_marginStart="48dp"
-            android:layout_marginBottom="44dp"
-            android:orientation="vertical">
-
-            <com.google.android.material.textview.MaterialTextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/newtv2_hero_label"
-                android:textColor="#E58A45"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.08" />
-
-            <androidx.appcompat.widget.AppCompatImageView
-                android:id="@+id/newtv2HeroLogo"
-                android:layout_width="wrap_content"
-                android:layout_height="96dp"
-                android:layout_marginTop="10dp"
-                android:maxWidth="420dp"
-                android:adjustViewBounds="true"
-                android:scaleType="fitCenter"
-                android:visibility="gone" />
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/newtv2HeroTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="影视盒子"
-                android:textColor="#FFFFFFFF"
-                android:textSize="34sp"
-                android:textStyle="bold"
-                tools:text="精选影片标题" />
-
-            <com.google.android.material.textview.MaterialTextView
-                android:id="@+id/newtv2HeroRemark"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:ellipsize="end"
-                android:maxLines="3"
-                android:text="@string/newtv2_hero_subtitle"
-                android:textColor="#B8C0CC"
-                android:textSize="16sp"
-                tools:text="更新中 · 当前配置源" />
-
-        </androidx.appcompat.widget.LinearLayoutCompat>
     </FrameLayout>
 
     <com.fongmi.android.tv.ui.custom.ProgressLayout
@@ -109,7 +48,7 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:paddingStart="48dp"
-            android:paddingTop="440dp"
+            android:paddingTop="8dp"
             android:paddingEnd="48dp"
             android:paddingBottom="20dp"
             app:focusOutEnd="true"
