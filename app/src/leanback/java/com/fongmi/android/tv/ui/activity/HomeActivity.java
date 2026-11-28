@@ -563,13 +563,32 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void getHistory(boolean renew) {
         List<History> items = Setting.isNewTV2Theme() ? History.getNewTV2() : History.get();
-        int historyIndex = getHistoryIndex();
-        int recommendIndex = getRecommendIndex();
-        boolean exist = recommendIndex - historyIndex == 2;
-        if (renew) mHistoryAdapter = new ArrayObjectAdapter(mPresenter = createHistoryPresenter());
-        if ((items.isEmpty() && exist) || (renew && exist)) mAdapter.removeItems(historyIndex, 1);
-        if ((!items.isEmpty() && !exist) || (renew && exist)) mAdapter.add(historyIndex, new ListRow(mHistoryAdapter));
+        int rowIndex = getHistoryRowIndex();
+        if (renew) {
+            if (rowIndex >= 0) mAdapter.remove(rowIndex);
+            mHistoryAdapter = new ArrayObjectAdapter(mPresenter = createHistoryPresenter());
+            rowIndex = -1;
+        }
+        if (items.isEmpty()) {
+            if (rowIndex >= 0) mAdapter.remove(rowIndex);
+            mHistoryAdapter.clear();
+            return;
+        }
+        if (rowIndex < 0) mAdapter.add(getHistoryIndex(), new ListRow(mHistoryAdapter));
         mHistoryAdapter.setItems(items, new BaseDiffCallback<History>());
+    }
+
+    /** Locate the history row by its adapter, not by its distance from the recommendation header.
+     * NewTV2 inserts dynamic recommendation shelves between those headers, so positional checks
+     * cause a new history row to be appended after every playback refresh.
+     */
+    private int getHistoryRowIndex() {
+        if (mAdapter == null || mHistoryAdapter == null) return -1;
+        for (int i = 0; i < mAdapter.size(); i++) {
+            Object item = mAdapter.get(i);
+            if (item instanceof ListRow && ((ListRow) item).getAdapter() == mHistoryAdapter) return i;
+        }
+        return -1;
     }
 
     private void setHistoryDelete(boolean delete) {

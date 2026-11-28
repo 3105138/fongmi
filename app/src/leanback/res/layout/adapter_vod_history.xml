@@ -12,7 +12,7 @@
 
     <FrameLayout
         android:id="@+id/poster"
-        android:layout_width="160dp"
+        android:layout_width="match_parent"
         android:layout_height="90dp"
         android:clipChildren="false"
         android:duplicateParentState="true"
@@ -54,7 +54,7 @@
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/name"
-        android:layout_width="160dp"
+        android:layout_width="match_parent"
         android:layout_height="26dp"
         android:layout_marginTop="8dp"
         android:duplicateParentState="true"
@@ -68,7 +68,7 @@
 
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/meta"
-        android:layout_width="160dp"
+        android:layout_width="match_parent"
         android:layout_height="20dp"
         android:layout_marginTop="2dp"
         android:ellipsize="end"

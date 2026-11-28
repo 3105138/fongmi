@@ -172,7 +172,7 @@ public final class NewTV2HeroPresenter extends Presenter {
         logoParams.height = dp(holder.view.getContext(), 96);
         holder.logo.setLayoutParams(logoParams);
         holder.logo.setVisibility(View.GONE);
-        holder.title.setVisibility(View.VISIBLE);
+        holder.title.setVisibility(View.INVISIBLE);
         holder.meta.setVisibility(View.GONE);
         holder.overview.setVisibility(View.GONE);
         holder.action.setVisibility(data == null ? View.GONE : View.VISIBLE);
@@ -204,7 +204,15 @@ public final class NewTV2HeroPresenter extends Presenter {
             holder.overview.setVisibility(View.VISIBLE);
         }
 
-        if (localLogo == null && !TextUtils.isEmpty(data.getLogo())) loadRemoteLogo(holder, data, false);
+        if (localLogo == null) {
+            if (!TextUtils.isEmpty(data.getLogo())) {
+                // Keep the text fallback hidden until the original-resolution logo is ready.
+                // Glide's disk cache makes subsequent carousel visits appear in the same frame.
+                loadRemoteLogo(holder, data, false);
+            } else {
+                holder.title.setVisibility(View.VISIBLE);
+            }
+        }
     }
 
     @Override

@@ -122,7 +122,7 @@ public final class NewTV2HistoryPresenter extends HistoryPresenter {
     }
 
     private void loadPoster(Holder holder, String url) {
-        holder.binding.image.setFitInside(true);
+        holder.binding.image.setFitInside(false);
         if (TextUtils.isEmpty(url)) {
             Glide.with(holder.binding.image).clear(holder.binding.image);
             holder.binding.image.setImageDrawable(null);
