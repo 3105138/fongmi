@@ -687,7 +687,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         return true;
     }
 
-    @Override
     private boolean belongsToCurrentConfig(History item) {
         String sourceUrl = item.getSiteUrl();
         boolean sameConfig = TextUtils.isEmpty(sourceUrl) || TextUtils.equals(sourceUrl, VodConfig.getUrl());
