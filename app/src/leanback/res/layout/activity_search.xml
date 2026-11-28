@@ -7,8 +7,7 @@
     android:clipChildren="false"
     android:clipToPadding="false"
     android:orientation="horizontal"
-    android:background="@drawable/bg_newtv2_screen"
-    android:padding="28dp">
+    android:padding="24dp">
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="wrap_content"
@@ -37,9 +36,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
-                android:background="@drawable/bg_newtv2_search_input"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
+                android:background="@null"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:hint="@string/search_keyword"

@@ -25,6 +25,7 @@ import com.fongmi.android.tv.databinding.ActivityVodBinding;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.ui.adapter.TypeAdapter;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.fragment.FolderFragment;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -75,6 +76,7 @@ public class VodActivity extends BaseActivity implements TypeAdapter.OnClickList
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        if (Setting.isNewTV2Theme()) mBinding.getRoot().setBackgroundResource(R.drawable.bg_newtv2_screen);
         setRecyclerView();
         setTypes();
         setPager();

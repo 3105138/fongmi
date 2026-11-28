@@ -58,4 +58,12 @@ public class Migrations {
             database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_Track_key_type_role` ON `Track` (`key`, `type`, `role`)");
         }
     };
+
+    /** Add the source-config URL used by NewTV2 to replace same-title history across sources. */
+    public static final Migration MIGRATION_36_37 = new Migration(36, 37) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE History ADD COLUMN siteUrl TEXT");
+        }
+    };
 }

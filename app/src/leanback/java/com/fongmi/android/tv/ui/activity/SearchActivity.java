@@ -73,6 +73,14 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        if (Setting.isNewTV2Theme()) {
+            mBinding.getRoot().setBackgroundResource(R.drawable.bg_newtv2_screen);
+            int side = Math.round(28 * getResources().getDisplayMetrics().density);
+            mBinding.getRoot().setPadding(side, side, side, side);
+            int inputSide = Math.round(18 * getResources().getDisplayMetrics().density);
+            mBinding.keyword.setBackgroundResource(R.drawable.bg_newtv2_search_input);
+            mBinding.keyword.setPadding(inputSide, mBinding.keyword.getPaddingTop(), inputSide, mBinding.keyword.getPaddingBottom());
+        }
         CustomKeyboard.init(this, mBinding);
         setRecyclerView();
         checkKeyword();

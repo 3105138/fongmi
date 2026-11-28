@@ -20,8 +20,11 @@ import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -64,6 +67,8 @@ public class History implements Diffable<History> {
     private int scale;
     @SerializedName("cid")
     private int cid;
+    @SerializedName("siteUrl")
+    private String siteUrl;
 
     private transient long saveTime;
 
@@ -90,6 +95,17 @@ public class History implements Diffable<History> {
         return get(VodConfig.getCid());
     }
 
+    /** NewTV2 history: one latest card per title across all configured video sources. */
+    public static List<History> getNewTV2() {
+        List<History> items = AppDatabase.get().getHistoryDao().findSince(System.currentTimeMillis() - Constant.HISTORY_TIME);
+        Map<String, History> unique = new LinkedHashMap<>();
+        for (History item : items) {
+            String name = TextUtils.isEmpty(item.getVodName()) ? item.getKey() : item.getVodName().trim();
+            if (!unique.containsKey(name)) unique.put(name, item);
+        }
+        return new ArrayList<>(unique.values());
+    }
+
     public static List<History> get(int cid) {
         return AppDatabase.get().getHistoryDao().find(cid, System.currentTimeMillis() - Constant.HISTORY_TIME);
     }
@@ -112,6 +128,10 @@ public class History implements Diffable<History> {
 
     public static void clear(int cid) {
         Task.executeSerial(() -> delete(cid));
+    }
+
+    public static void clearAll() {
+        Task.executeSerial(() -> AppDatabase.get().getHistoryDao().delete());
     }
 
     public static void sync(List<History> targets) {
@@ -265,6 +285,30 @@ public class History implements Diffable<History> {
         this.cid = cid;
     }
 
+    public String getSiteUrl() {
+        return siteUrl == null ? "" : siteUrl;
+    }
+
+    public void setSiteUrl(String siteUrl) {
+        this.siteUrl = siteUrl;
+    }
+
+    /** Remove other stored rows with this exact title when NewTV2 replaces the recent-history card. */
+    public History replaceOthers() {
+        if (!TextUtils.isEmpty(getVodName())) {
+            AppDatabase.get().getHistoryDao().deleteOthers(getVodName(), getKey());
+        }
+        return this;
+    }
+
+    /** Existing duplicates can be removed from the database with the single visible NewTV2 card. */
+    public History deleteAllByName() {
+        if (!TextUtils.isEmpty(getVodName())) AppDatabase.get().getHistoryDao().deleteByName(getVodName());
+        else delete();
+        AppDatabase.get().getTrackDao().delete(getKey());
+        return this;
+    }
+
     public History cid(int cid) {
         setKey(getSiteKey().concat(AppDatabase.SYMBOL).concat(getVodId()).concat(AppDatabase.SYMBOL) + cid);
         setCid(cid);
@@ -340,6 +384,7 @@ public class History implements Diffable<History> {
         item.speed = speed;
         item.scale = scale;
         item.cid = cid;
+        item.siteUrl = siteUrl;
         return item;
     }
 

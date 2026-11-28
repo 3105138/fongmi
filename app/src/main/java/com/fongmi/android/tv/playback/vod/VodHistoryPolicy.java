@@ -19,6 +19,7 @@ public class VodHistoryPolicy {
     public History findOrCreate(String key, String mark, Vod item) {
         History history = History.find(key);
         history = history == null ? create(key, item) : history;
+        history.setSiteUrl(VodConfig.getUrl());
         if (!TextUtils.isEmpty(mark)) history.setVodRemarks(mark);
         if (Setting.isIncognito()) history.delete();
         item.checkName(history.getVodName());
@@ -30,6 +31,7 @@ public class VodHistoryPolicy {
         History history = new History();
         history.setKey(key);
         history.setCid(VodConfig.getCid());
+        history.setSiteUrl(VodConfig.getUrl());
         history.setVodName(item.getName());
         history.findEpisode(item.getFlags());
         return history;
@@ -43,7 +45,9 @@ public class VodHistoryPolicy {
         if (history == null || !history.canSave() || Setting.isIncognito()) return;
         History copy = copyForSave(history);
         Task.executeSerial(() -> {
-            copy.merge().save();
+            copy.merge();
+            if (Setting.isNewTV2Theme()) copy.replaceOthers();
+            copy.save();
             if (exit) RefreshEvent.history();
         });
     }
@@ -60,6 +64,7 @@ public class VodHistoryPolicy {
         history.setDuration(C.TIME_UNSET);
         History copy = copyForSave(history);
         Task.executeSerial(() -> {
+            if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
             if (exit) RefreshEvent.history();
         });
@@ -70,6 +75,7 @@ public class VodHistoryPolicy {
         history.setCreateTime(time);
         History copy = copyForSave(history);
         Task.executeSerial(() -> {
+            if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
             if (exit) RefreshEvent.history();
         });
@@ -83,6 +89,7 @@ public class VodHistoryPolicy {
         if (history == null || Setting.isIncognito()) return;
         History copy = copyForSave(history);
         Task.executeSerial(() -> {
+            if (Setting.isNewTV2Theme()) copy.replaceOthers();
             copy.save();
             if (refresh) RefreshEvent.history();
         });

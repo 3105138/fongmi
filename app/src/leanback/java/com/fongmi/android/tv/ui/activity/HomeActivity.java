@@ -34,6 +34,8 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
+import com.fongmi.android.tv.api.TmdbApi;
+import com.fongmi.android.tv.api.TmdbStore;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.api.node.NodeRuntime;
 import com.fongmi.android.tv.bean.Cache;
@@ -42,6 +44,7 @@ import com.fongmi.android.tv.bean.Func;
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.bean.NewTV2HeroRow;
 import com.fongmi.android.tv.bean.Result;
+import com.fongmi.android.tv.bean.TmdbArt;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
 import com.fongmi.android.tv.bean.Vod;
@@ -95,6 +98,7 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -303,6 +307,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         if (backdrop == null) return;
         String path = TextUtils.isEmpty(item.getBackdrop()) ? item.getPoster() : item.getBackdrop();
         if (TextUtils.isEmpty(path)) return;
+        requestNewTV2TitleLogo(item);
         Glide.with(this).load(NewTV2HomeData.proxyImage(path, "w1280"))
                 .error(NewTV2HomeData.officialImage(path, "w1280"))
                 .centerCrop()
@@ -332,6 +337,34 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         float alpha = visible ? 1f : 0f;
         layer.animate().cancel();
         layer.animate().alpha(alpha).setDuration(220L).start();
+    }
+
+    private void requestNewTV2TitleLogo(NewTV2HomeData.HeroItem item) {
+        if (item == null || TextUtils.isEmpty(item.getTitle())) return;
+        String title = item.getTitle();
+        TmdbArt cached = TmdbStore.find(title);
+        if (cached != null && !TextUtils.isEmpty(cached.getLogo())
+                && TmdbStore.logoBitmap(cached.getLogo()) != null) return;
+        TmdbApi.FetchCallback callback = new TmdbApi.FetchCallback() {
+            @Override
+            public void onSuccess(String keyword, TmdbArt art) {
+                if (art == null || TextUtils.isEmpty(art.getLogo())) return;
+                App.post(() -> {
+                    if (mBinding == null || isFinishing() || isDestroyed() || !Setting.isNewTV2Theme()) return;
+                    if (mNewTV2HeroRow == null || mNewTV2HeroRow.getItem() == null
+                            || !TextUtils.equals(mNewTV2HeroRow.getItem().getTitle(), title)) return;
+                    int position = mAdapter.indexOf(mNewTV2HeroRow);
+                    if (position >= 0) mAdapter.notifyArrayItemRangeChanged(position, 1);
+                });
+            }
+
+            @Override
+            public void onFailure(String keyword, String reason) {
+                // Sans-serif title remains the fallback when no matching TMDB logo exists.
+            }
+        };
+        if (cached == null) TmdbApi.fetch(title, "", Collections.singletonList(title), callback);
+        else TmdbApi.retry(title, "", Collections.singletonList(title), callback);
     }
 
     private void updateNewTV2Board(int board,List<NewTV2HomeData.BoardItem> items) {
@@ -529,7 +562,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void getHistory(boolean renew) {
-        List<History> items = History.get();
+        List<History> items = Setting.isNewTV2Theme() ? History.getNewTV2() : History.get();
         int historyIndex = getHistoryIndex();
         int recommendIndex = getRecommendIndex();
         boolean exist = recommendIndex - historyIndex == 2;
@@ -546,7 +579,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void clearHistory() {
         mAdapter.removeItems(getHistoryIndex(), 1);
-        History.clear(VodConfig.getCid());
+        if (Setting.isNewTV2Theme()) History.clearAll();
+        else History.clear(VodConfig.getCid());
         mPresenter.setDelete(false);
         mHistoryAdapter.clear();
     }
@@ -654,13 +688,24 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     @Override
+    private boolean belongsToCurrentConfig(History item) {
+        String sourceUrl = item.getSiteUrl();
+        boolean sameConfig = TextUtils.isEmpty(sourceUrl) || TextUtils.equals(sourceUrl, VodConfig.getUrl());
+        return sameConfig && !TextUtils.isEmpty(VodConfig.get().getSite(item.getSiteKey()).getKey());
+    }
+
+    @Override
     public void onItemClick(History item) {
-        VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic());
+        if (Setting.isNewTV2Theme() && !belongsToCurrentConfig(item)) {
+            SearchActivity.start(this, item.getVodName());
+        } else {
+            VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic());
+        }
     }
 
     @Override
     public void onItemDelete(History item) {
-        mHistoryAdapter.remove(item.delete());
+        mHistoryAdapter.remove(Setting.isNewTV2Theme() ? item.deleteAllByName() : item.delete());
         if (mHistoryAdapter.size() > 0) return;
         mAdapter.removeItems(getHistoryIndex(), 1);
         mPresenter.setDelete(false);

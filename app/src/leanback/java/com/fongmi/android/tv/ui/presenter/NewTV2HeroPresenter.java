@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.ui.presenter;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -27,6 +28,8 @@ import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.TmdbStore;
+import com.fongmi.android.tv.bean.TmdbArt;
 import com.fongmi.android.tv.bean.NewTV2HeroRow;
 import com.fongmi.android.tv.utils.NewTV2HomeData;
 
@@ -90,8 +93,8 @@ public final class NewTV2HeroPresenter extends Presenter {
 
         TextView title = new TextView(context);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 38);
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 42);
+        title.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
         title.setIncludeFontPadding(false);
         title.setMaxLines(2);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
@@ -160,6 +163,11 @@ public final class NewTV2HeroPresenter extends Presenter {
         NewTV2HomeData.HeroItem data = ((NewTV2HeroRow) item).getItem();
         holder.item = data;
         Glide.with(holder.logo).clear(holder.logo);
+        holder.logo.setImageDrawable(null);
+        ViewGroup.LayoutParams logoParams = holder.logo.getLayoutParams();
+        logoParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        logoParams.height = dp(holder.view.getContext(), 96);
+        holder.logo.setLayoutParams(logoParams);
         holder.logo.setVisibility(View.GONE);
         holder.title.setVisibility(View.VISIBLE);
         holder.meta.setVisibility(View.GONE);
@@ -172,6 +180,8 @@ public final class NewTV2HeroPresenter extends Presenter {
         }
 
         holder.title.setText(data.getTitle());
+        Bitmap localLogo = findLogo(data.getTitle());
+        if (localLogo != null) bindLogo(holder, localLogo);
         StringBuilder meta = new StringBuilder();
         if (!TextUtils.isEmpty(data.getRating())) meta.append("TMDB ").append(data.getRating());
         if (!TextUtils.isEmpty(data.getYear())) {
@@ -191,7 +201,7 @@ public final class NewTV2HeroPresenter extends Presenter {
             holder.overview.setVisibility(View.VISIBLE);
         }
 
-        if (!TextUtils.isEmpty(data.getLogo())) {
+        if (localLogo == null && !TextUtils.isEmpty(data.getLogo())) {
             String logo = NewTV2HomeData.proxyImage(data.getLogo(), "original");
             String fallback = NewTV2HomeData.officialImage(data.getLogo(), "original");
             Glide.with(holder.logo).load(logo).error(Glide.with(holder.logo).load(fallback))
@@ -222,6 +232,33 @@ public final class NewTV2HeroPresenter extends Presenter {
         HeroHolder holder = (HeroHolder) viewHolder;
         holder.item = null;
         Glide.with(holder.logo).clear(holder.logo);
+        holder.logo.setImageDrawable(null);
+    }
+
+    private static Bitmap findLogo(String title) {
+        TmdbArt art = TmdbStore.find(title);
+        if (art == null || TextUtils.isEmpty(art.getLogo())) return null;
+        return TmdbStore.logoBitmap(art.getLogo());
+    }
+
+    private static void bindLogo(HeroHolder holder, Bitmap bitmap) {
+        float ratio = bitmap.getWidth() / (float) Math.max(1, bitmap.getHeight());
+        int heightDp = ratio < (1f / 1.6f) ? 200 : ratio <= 1f ? 120 : 80;
+        int available = holder.view.getResources().getDisplayMetrics().widthPixels - dp(holder.view.getContext(), 96);
+        int maxWidth = Math.max(1, Math.min(dp(holder.view.getContext(), 300), available));
+        int height = dp(holder.view.getContext(), heightDp);
+        int width = Math.max(1, Math.round(height * ratio));
+        if (width > maxWidth) {
+            width = maxWidth;
+            height = Math.max(1, Math.round(width / Math.max(ratio, 0.01f)));
+        }
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) holder.logo.getLayoutParams();
+        params.width = width;
+        params.height = height;
+        holder.logo.setLayoutParams(params);
+        holder.logo.setImageBitmap(bitmap);
+        holder.logo.setVisibility(View.VISIBLE);
+        holder.title.setVisibility(View.GONE);
     }
 
     private static void styleAction(HeroHolder holder, boolean focused) {

@@ -72,6 +72,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        if (Setting.isNewTV2Theme()) mBinding.getRoot().setBackgroundResource(R.drawable.bg_newtv2_screen);
         mBinding.vod.requestFocus();
         mBinding.vodUrl.setText(VodConfig.getDesc());
         mBinding.liveUrl.setText(LiveConfig.getDesc());
